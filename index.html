@@ -73,6 +73,14 @@
   .kPinWhite { position: absolute; inset: 3px; border-radius: 50%; background: #fff; }
   .kPinFill { position: absolute; inset: 3px; border-radius: 50%; opacity: 0.92; }
   .kPinCenter { position: absolute; inset: 10px; border-radius: 50%; background: #fff; }
+
+  /* 안전요원 부스 가정 위치 (빨간 점) */
+  .lgSpot { position: relative; width: 16px; height: 16px; }
+  .lgSpotDot { position: absolute; inset: 4px; border-radius: 50%; background: #e0402f;
+    border: 2px solid #ffffff; box-shadow: 0 1px 4px rgba(0,0,0,0.35); }
+  .lgSpotPulse { position: absolute; inset: 0; border-radius: 50%; background: #e0402f;
+    opacity: 0.5; animation: lgspotpulse 1.6s ease-out infinite; }
+  @keyframes lgspotpulse { 0% { transform: scale(0.6); opacity: 0.55; } 100% { transform: scale(2.2); opacity: 0; } }
   .kPinSelected { position: absolute; inset: -6px; border-radius: 50%; border: 2px solid #16321f; opacity: 0; }
   .kPinSelected.on { opacity: 1; }
 
@@ -133,6 +141,12 @@
   .countBtn:disabled { opacity: 0.4; cursor: not-allowed; }
   .countBtn:active:not(:disabled) { transform: scale(0.97); }
   .countMany { border-color: #f0b7ab; color: #c23f28; background: #fdece8; }
+  .countBtn.selected { border-color: #16321f; background: #16321f; color: #ffffff; }
+  .countBtn.countMany.selected { border-color: #c23f28; background: #c23f28; color: #ffffff; }
+  .submitReportBtn { width: 100%; border: none; background: #16321f; color: #ffffff; font-size: 14.5px;
+    font-weight: 800; padding: 14px 0; border-radius: 12px; cursor: pointer; margin-top: 16px; }
+  .submitReportBtn:disabled { background: #c7d2c9; cursor: not-allowed; }
+  .submitReportBtn:active:not(:disabled) { transform: scale(0.98); }
   .stepHint { font-size: 11.5px; color: #6b8272; margin-top: 13px; line-height: 1.5; }
 
   /* 신고 시 사진·GPS */
@@ -387,7 +401,7 @@
       along: {la: 0.0012, ln: 0.0012}, sea: {la: -0.0012, ln: 0.0012} },
     { id: "songdo",    name: "송도",     searchName: "송도해수욕장 부산 서구", lat: 35.0778, lng: 129.0166, mx: 23, my: 82,
       along: {la: 0.0003, ln: 0.0018}, sea: {la: -0.0016, ln: 0.0004} },
-    { id: "gamji",     name: "감지해변", searchName: "감지해변",       lat: 35.0533, lng: 129.0873, mx: 44, my: 88,
+    { id: "gamji",     name: "감지해변", searchName: "감지해변 부산 영도구", lat: 35.0533, lng: 129.0873, mx: 44, my: 88,
       along: {la: 0.0010, ln: -0.0010}, sea: {la: -0.0006, ln: 0.0022} },
     { id: "dadaepo",   name: "다대포",   searchName: "다대포해수욕장",  lat: 35.0416, lng: 128.9660, mx: 8, my: 92,
       along: {la: 0.0006, ln: 0.0018}, sea: {la: -0.0016, ln: 0.0000} },
@@ -404,15 +418,9 @@
   var PHOTO_WEIGHT_BONUS = 1.5; // 사진 첨부 시 가중치 배수
   var REPORT_COOLDOWN_MS = 5000; // 부정 신고 방지: 실제 시간 기준 5초
 
-  // 해류가 실제로 흐르는 세밀한 순서: 한 해변 안에서도 서쪽 → 중앙 → 동쪽을 거친 뒤
+  // 해류가 실제로 흐르는 순서: 한 해변 안에서는 서쪽 → 중앙 → 동쪽을 거친 뒤
   // 다음 해변의 서쪽으로 넘어간다. (예: 송도서 → 송도중 → 송도동 → 감지서 → …)
-  var ZONE_FLOW = [];
-  DRIFT_ORDER.forEach(function (bid) {
-    ZONES.forEach(function (z) { ZONE_FLOW.push(bid + "_" + z); });
-  });
-  // 특정 해변+구역이 흐름 상 몇 번째 칸인지 빠르게 찾기 위한 색인
-  var ZONE_FLOW_INDEX = {};
-  ZONE_FLOW.forEach(function (key, i) { ZONE_FLOW_INDEX[key] = i; });
+  var ZONE_INDEX = { w: 0, c: 1, e: 2 };
 
   var ADVISORY = {
     imnang: false, ilgwang: false, songjeong: true, haeundae: true,
@@ -421,14 +429,14 @@
 
   // 안전요원 관련 일반 안내(정확한 부스 좌표는 시즌마다 바뀌므로, 대신 지도에서 직접 찾도록 안내)
   var LIFEGUARD_TIP = {
-    imnang: "임랑해수욕장은 백사장 중앙 감시탑 부근에 안전요원이 배치돼요.",
-    ilgwang: "일광해수욕장은 중앙 안전센터 앞쪽에 안전요원이 상주해요.",
-    songjeong: "송정해수욕장은 중앙 광장 인근 초소를 확인해 보세요.",
-    haeundae: "해운대는 해변이 넓어 여러 구역에 안전요원이 배치돼요. 가장 가까운 감시탑을 찾아보세요.",
-    gwangalli: "광안리해수욕장은 해변 중앙 안전센터에 안전요원이 있어요.",
-    songdo: "송도해수욕장은 중앙 광장 쪽 초소를 확인해 보세요.",
-    gamji: "감지해변은 규모가 작아 진입로 근처에서 바로 확인 가능해요.",
-    dadaepo: "다대포해수욕장은 중앙 광장 앞 안전센터를 확인해 보세요.",
+    imnang: "지도의 빨간 점 근처, 백사장 중앙 감시탑 부근에 안전요원이 배치돼요.",
+    ilgwang: "지도의 빨간 점 근처, 중앙 안전센터 앞쪽에 안전요원이 상주해요.",
+    songjeong: "지도의 빨간 점 근처, 중앙 광장 인근 초소를 확인해 보세요.",
+    haeundae: "해운대는 해변이 넓어 여러 구역에 안전요원이 배치돼요. 빨간 점 근처에서 가장 가까운 감시탑을 찾아보세요.",
+    gwangalli: "지도의 빨간 점 근처, 해변 중앙 안전센터에 안전요원이 있어요.",
+    songdo: "지도의 빨간 점 근처, 중앙 광장 쪽 초소를 확인해 보세요.",
+    gamji: "감지해변은 규모가 작아 빨간 점 근처 진입로에서 바로 확인 가능해요.",
+    dadaepo: "지도의 빨간 점 근처, 중앙 광장 앞 안전센터를 확인해 보세요.",
   };
 
   var COUNT_LABEL = { one: "1마리", few: "여러 마리", many: "떼로 출현" };
@@ -438,10 +446,13 @@
   }
   var COUNT_INTENSITY = { one: 0.6, few: 1.0, many: 1.6 };
 
-  var SIM_MIN_PER_REAL_SEC = 3;
+  var SIM_MIN_PER_REAL_SEC = 2;   // 실제 1초 = 시뮬레이션 2분 배속(기존 3분보다 완만하게)
   var HALF_LIFE_MIN = 90;
-  var DRIFT_HOP_MIN = 7;   // 구역 한 칸(서→중, 중→동, 동→다음해변 서)을 이동하는 데 걸리는 시간
-  var DRIFT_CARRYOVER = 0.95; // 구역 한 칸 이동 시 전달 비율(칸이 잘게 나뉘었으므로 손실도 작게)
+  // 같은 해수욕장 안(서→중, 중→동)은 빠르고 손실 없이 퍼지고,
+  // 해수욕장 사이(예: 송도→감지해변)는 훨씬 느리게, 건널 때만 감쇠가 생긴다.
+  var INTRA_HOP_MIN = 10;      // 같은 해수욕장 안, 구역 한 칸 이동 시간
+  var INTER_HOP_MIN = 90;      // 해수욕장 하나를 건너는 데 걸리는 시간
+  var DRIFT_CARRYOVER = 0.85;  // 해수욕장을 하나 건널 때만 적용되는 전달 비율(구역 내 이동은 100%)
 
   var STATUS = {
     safe:    { label: "안전", color: "#2fae5c" },
@@ -457,8 +468,7 @@
     return "safe";
   }
 
-  // 해변 전체 + 구역별 점수를 동시에 계산
-  // 해변 전체 + 구역별 점수를 구역 흐름(ZONE_FLOW)을 따라 계산한다.
+  // 해변 전체 + 구역별 점수를, 구역 내(빠름·손실없음) / 해변 간(느림·감쇠) 이동을 구분해 계산한다.
   function computeScores(reports, simMin) {
     var acc = {};
     BEACHES.forEach(function (b) {
@@ -468,21 +478,46 @@
       });
     });
 
-    // 하나의 출발 구역에서 시작한 신고가 흐름을 타고 이동한 결과를 누적
-    function accumulate(startKey, weight0, age) {
-      var startIdx = ZONE_FLOW_INDEX[startKey];
-      if (startIdx == null) return;
-      var hop = Math.floor(age / DRIFT_HOP_MIN);
-      var curIdx = startIdx + hop;
-      if (curIdx >= ZONE_FLOW.length) return; // 임랑 동쪽을 지나 먼바다로 소실
-      var curKey = ZONE_FLOW[curIdx];
-      var curBeach = curKey.split("_")[0];
-      var w = weight0 * decayWeight(age) * Math.pow(DRIFT_CARRYOVER, hop);
-      // 구역 점수
-      if (hop === 0) { acc[curKey].local += w; acc[curKey].localCount += 1; }
-      else { acc[curKey].drifted += w; acc[curKey].driftedCount += 1; }
-      // 해변 전체 점수(구역 점수를 해변 단위로도 합산)
-      if (hop === 0) { acc[curBeach].local += w; acc[curBeach].localCount += 1; }
+    // 나이(age)가 지났을 때, 시작 위치(해변 인덱스+구역 인덱스)에서 해류를 타고
+    // 어느 해변의 어느 구역들까지 퍼졌는지 계산한다.
+    // - 같은 해변 안에서는 구역이 10분마다 한 칸씩 "추가로" 퍼지되, 이미 퍼진 구역은 계속 유지된다
+    //   (전달 비율 100% → 서쪽이 위험하면 동쪽으로 번져도 서쪽도 계속 위험하게 남는다).
+    // - 해변의 동쪽 끝까지 퍼진 뒤에는 다음 해변으로 건너가는 데 90분이 걸리고,
+    //   건널 때만 감쇠(DRIFT_CARRYOVER)가 적용된다.
+    function locateFlow(beachIdx0, zoneIdx0, age) {
+      var beachIdx = beachIdx0, zoneIdx = zoneIdx0, remaining = age, beachHopCount = 0;
+      while (true) {
+        var toEdge = (2 - zoneIdx) * INTRA_HOP_MIN; // 동쪽 끝(e)까지 남은 시간
+        if (remaining < toEdge) {
+          var advanced = Math.floor(remaining / INTRA_HOP_MIN);
+          return { beachIdx: beachIdx, fromZoneIdx: zoneIdx, toZoneIdx: zoneIdx + advanced, beachHopCount: beachHopCount };
+        }
+        remaining -= toEdge; // 이 해변의 동쪽 끝(e)에 도달
+        if (remaining < INTER_HOP_MIN) {
+          // 아직 다음 해변으로 넘어가는 중(먼바다 이동 중) → 이 해변의 서~동 전체가 계속 위험
+          return { beachIdx: beachIdx, fromZoneIdx: zoneIdx, toZoneIdx: 2, beachHopCount: beachHopCount };
+        }
+        remaining -= INTER_HOP_MIN;
+        beachIdx += 1; beachHopCount += 1; zoneIdx = 0; // 다음 해변의 서쪽으로 진입
+        if (beachIdx >= DRIFT_ORDER.length) return null; // 임랑을 지나 먼바다로 소실
+      }
+    }
+
+    // 하나의 출발 구역에서 시작한 신고가 흐른 결과를 누적
+    function accumulate(beachId, zone, weight0, age) {
+      var beachIdx0 = DRIFT_ORDER.indexOf(beachId);
+      var zoneIdx0 = ZONE_INDEX[zone];
+      var loc = locateFlow(beachIdx0, zoneIdx0, age);
+      if (!loc) return;
+      var curBeach = DRIFT_ORDER[loc.beachIdx];
+      var isLocal = loc.beachIdx === beachIdx0; // 아직 원래 해변이면 "방금 목격", 다른 해변으로 넘어갔으면 "흘러들어옴"
+      var w = weight0 * decayWeight(age) * Math.pow(DRIFT_CARRYOVER, loc.beachHopCount);
+      for (var zi = loc.fromZoneIdx; zi <= loc.toZoneIdx; zi++) {
+        var zKey = curBeach + "_" + ZONES[zi];
+        if (isLocal) { acc[zKey].local += w; acc[zKey].localCount += 1; }
+        else { acc[zKey].drifted += w; acc[zKey].driftedCount += 1; }
+      }
+      if (isLocal) { acc[curBeach].local += w; acc[curBeach].localCount += 1; }
       else { acc[curBeach].drifted += w; acc[curBeach].driftedCount += 1; }
     }
 
@@ -493,9 +528,9 @@
       var zone = r.zone || "all";
       if (zone === "all") {
         // 전체 신고: 세 구역에서 각각 1/3씩 출발한 것으로 처리 → 동/중/서 모두 소폭 상승
-        ZONES.forEach(function (z) { accumulate(r.beach + "_" + z, base / 3, age); });
+        ZONES.forEach(function (z) { accumulate(r.beach, z, base / 3, age); });
       } else {
-        accumulate(r.beach + "_" + zone, base, age);
+        accumulate(r.beach, zone, base, age);
       }
     });
 
@@ -544,11 +579,12 @@
     infoZone: null,       // 구역 핀을 눌렀을 때 어느 구역을 강조할지
     reportBeachId: null,    // 신고 대상으로 선택된 해변
     reportZone: null,       // "w"/"c"/"e"/"all" or null
+    reportCount: null,      // "one"/"few"/"many" — 선택만 된 상태, 아직 제출 전
     reportPhoto: null,      // data URL
     reportGps: null,        // {lat,lng} or null
     lastReportRealTime: 0,  // 부정 신고 방지: 마지막 신고의 Date.now()
   };
-  var lastFrame = null, toastTimer = null, lastModalRenderT = 0;
+  var lastFrame = null, toastTimer = null, lastModalRenderT = 0, cooldownRerenderTimer = null;
 
   var el = {
     playPauseBtn: document.getElementById("playPauseBtn"),
@@ -628,6 +664,20 @@
 
   // 카카오 장소검색으로 각 해수욕장의 실제 좌표를 받아와 BEACHES 좌표를 보정한다.
   // (검색 실패 시엔 코드에 적힌 기본 좌표를 그대로 사용)
+  //
+  // 주의: "부산 안이면 OK" 식으로 느슨하게 검증하면, 이름이 애매한 곳(예: 감지해변)에서
+  // 전혀 다른 장소가 걸려도 그대로 받아들이게 된다. 그러면 좌표가 바뀌면서, 해변 방향에
+  // 맞춰 손으로 조정해둔 서/중/동 구역 오프셋(along/sea)까지 어긋나 구역 핀이 다시 엉뚱한
+  // 곳(산 등)에 놓일 수 있다. 그래서 "기존 기본 좌표에서 너무 멀리 떨어진 결과는 버리는"
+  // 방식으로 검증한다.
+  var GEOCODE_MAX_DRIFT_M = 700; // 기본 좌표에서 이 거리(m) 이상 벗어난 결과는 신뢰하지 않음
+  function roughDistanceMeters(la1, ln1, la2, ln2) {
+    var mPerLat = 111000;
+    var mPerLng = 111000 * Math.cos((la1 * Math.PI) / 180);
+    var dy = (la2 - la1) * mPerLat;
+    var dx = (ln2 - ln1) * mPerLng;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
   function geocodeBeaches(done) {
     if (!(kakao.maps.services && kakao.maps.services.Places)) { done(); return; }
     var places = new kakao.maps.services.Places();
@@ -640,14 +690,16 @@
     // 혹시 콜백이 안 오는 경우를 대비한 안전장치 (3초 후 강제 진행)
     setTimeout(function () { if (!finished) { finished = true; done(); } }, 3000);
     BEACHES.forEach(function (b) {
+      var fallbackLat = b.lat, fallbackLng = b.lng; // 검색 전 기본 좌표를 기준점으로 보관
       places.keywordSearch(b.searchName || b.name, function (data, status) {
         if (status === kakao.maps.services.Status.OK && data && data.length) {
           var top = data[0];
           var la = parseFloat(top.y), ln = parseFloat(top.x);
-          // 부산 인근(위도 34.9~35.5, 경도 128.8~129.4) 범위 안일 때만 신뢰
-          if (la > 34.9 && la < 35.5 && ln > 128.8 && ln < 129.4) {
+          var drift = roughDistanceMeters(fallbackLat, fallbackLng, la, ln);
+          if (drift <= GEOCODE_MAX_DRIFT_M) {
             b.lat = la; b.lng = ln;
           }
+          // drift가 너무 크면 엉뚱한 장소로 보고 기본 좌표를 그대로 유지한다.
         }
         checkDone();
       });
@@ -870,8 +922,10 @@
   function openReport() {
     state.reportBeachId = null;
     state.reportZone = null;
+    state.reportCount = null;
     state.reportPhoto = null;
     state.reportGps = null;
+    if (cooldownRerenderTimer) { clearTimeout(cooldownRerenderTimer); cooldownRerenderTimer = null; }
     renderReportModal();
     el.reportOverlay.classList.remove("hidden");
     requestGps();
@@ -879,6 +933,8 @@
   function closeReport() {
     state.reportBeachId = null;
     state.reportZone = null;
+    state.reportCount = null;
+    if (cooldownRerenderTimer) { clearTimeout(cooldownRerenderTimer); cooldownRerenderTimer = null; }
     el.reportOverlay.classList.add("hidden");
   }
 
@@ -948,10 +1004,11 @@
       return;
     }
 
-    // 2단계: 해변 선택됨 → 구역·개수·사진
+    // 2단계: 해변 선택됨 → 구역·개수 고르기(선택만, 아직 접수 안 됨) → 사진(선택) → 제출
     var b = BEACHES.filter(function (x){return x.id===picked;})[0];
     var st = STATUS[scores[picked].status];
     var zone = state.reportZone;
+    var count = state.reportCount;
     var countDisabled = zone ? "" : "disabled";
 
     var zoneBtnsHtml = '<div class="zoneBtns">';
@@ -979,6 +1036,15 @@
       ? '<div class="cooldownMsg">조금 전에 신고를 접수했어요. ' + Math.ceil(cooldownLeft/1000) + '초 후에 다시 신고할 수 있어요.</div>'
       : '';
     if (cooldownLeft > 0) countDisabled = "disabled";
+    // 쿨다운이 끝나는 정확한 시점에 맞춰 딱 한 번 더 다시 그려서, 버튼이 확실히 다시 눌리게 한다.
+    if (cooldownLeft > 0) {
+      if (cooldownRerenderTimer) clearTimeout(cooldownRerenderTimer);
+      cooldownRerenderTimer = setTimeout(function () {
+        if (!el.reportOverlay.classList.contains("hidden") && state.reportBeachId) renderReportModal();
+      }, cooldownLeft + 50);
+    }
+
+    var submitDisabled = (!zone || !count || cooldownLeft > 0) ? "disabled" : "";
 
     el.reportContent.innerHTML =
       '<div class="sheetTitle">해파리 신고</div>' +
@@ -991,9 +1057,9 @@
       zoneBtnsHtml +
       '<div class="sheetSub">몇 마리 정도였나요?' + (zone ? '' : ' <span style="color:#8a9a8f;font-weight:500">(구역을 먼저 선택해 주세요)</span>') + '</div>' +
       '<div class="countBtns">' +
-        '<button class="countBtn" data-count="one" ' + countDisabled + '>1마리</button>' +
-        '<button class="countBtn" data-count="few" ' + countDisabled + '>여러 마리</button>' +
-        '<button class="countBtn countMany" data-count="many" ' + countDisabled + '>많음(떼)</button>' +
+        '<button class="countBtn' + (count === "one" ? " selected" : "") + '" data-count="one" ' + countDisabled + '>1마리</button>' +
+        '<button class="countBtn' + (count === "few" ? " selected" : "") + '" data-count="few" ' + countDisabled + '>여러 마리</button>' +
+        '<button class="countBtn countMany' + (count === "many" ? " selected" : "") + '" data-count="many" ' + countDisabled + '>많음(떼)</button>' +
       '</div>' +
       cooldownMsg +
       '<div class="photoGpsBox">' +
@@ -1002,12 +1068,14 @@
       '</div>' +
       '<input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none" />' +
       photoNote +
-      '<div class="stepHint">개수를 선택하면 바로 접수돼요. 사진을 첨부하면 신고 신뢰도가 올라가요.</div>' +
+      '<div class="stepHint">구역과 개수를 고른 뒤, 사진(선택)까지 확인하고 아래 제출 버튼을 눌러 주세요.</div>' +
+      '<button class="submitReportBtn" id="submitReportBtn" ' + submitDisabled + '>신고 제출하기</button>' +
       '<button class="cancelBtn" id="reportCloseBtn">닫기</button>';
   }
 
-  function submitReport(count) {
-    if (!state.reportBeachId || !state.reportZone) return;
+  function submitReport() {
+    var count = state.reportCount;
+    if (!state.reportBeachId || !state.reportZone || !count) return;
     // 쿨다운 체크
     var now = Date.now();
     if (now - state.lastReportRealTime < REPORT_COOLDOWN_MS) {
@@ -1041,9 +1109,36 @@
       '<div class="sheetTitle">해수욕장별 안전요원 찾기</div>' +
       '<div class="stepHint" style="margin-top:6px">해수욕장을 고르면 지도가 그 위치로 이동해요. 보통 백사장 중앙 감시탑이나 안전센터 근처에 있어요.</div>' +
       '<div class="lgList">' + rows + '</div>' +
-      '<div class="lgTip">정확한 위치는 시즌·요일에 따라 바뀔 수 있어요. 급할 땐 주변 사람에게 물어보거나 119(해양 사고는 122 해양경찰)로 바로 연락하세요.</div>' +
+      '<div class="lgTip">지도 위 빨간 점은 백사장 중앙 부근에 있을 것으로 가정한 위치예요(실제 확인된 좌표가 아니에요). 정확한 위치는 시즌·요일에 따라 바뀔 수 있으니, 도착하면 주변을 둘러보거나 사람들에게 물어보세요. 급할 땐 119(해양 사고는 122 해양경찰)로 바로 연락하세요.</div>' +
       '<button class="cancelBtn" id="lifeguardCloseBtn">닫기</button>';
   }
+  // 안전요원 부스는 보통 백사장 중앙, 물가 바로 앞에 있다고 가정해
+  // 각 해변의 중앙(along 0) + 바다 쪽으로 살짝(sea의 40%)만 이동한 지점을 부스 위치로 삼는다.
+  function lifeguardSpot(b) {
+    return {
+      lat: b.lat + b.sea.la * 0.4,
+      lng: b.lng + b.sea.ln * 0.4,
+    };
+  }
+
+  var lifeguardMarker = null; // 지도 위 빨간 점(안전요원 부스 가정 위치) 오버레이
+  function showLifeguardSpot(b) {
+    if (!kakaoMap) return;
+    var spot = lifeguardSpot(b);
+    if (!lifeguardMarker) {
+      var wrap = document.createElement("div");
+      wrap.className = "lgSpot";
+      wrap.innerHTML = '<span class="lgSpotPulse"></span><span class="lgSpotDot"></span>';
+      lifeguardMarker = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(spot.lat, spot.lng),
+        content: wrap, yAnchor: 0.5, xAnchor: 0.5, zIndex: 50,
+      });
+    } else {
+      lifeguardMarker.setPosition(new kakao.maps.LatLng(spot.lat, spot.lng));
+    }
+    lifeguardMarker.setMap(kakaoMap);
+  }
+
   function goToBeachOnMap(beachId) {
     var b = BEACHES.filter(function (x){return x.id===beachId;})[0];
     if (!b) return;
@@ -1052,6 +1147,7 @@
     if (kakaoMap) {
       kakaoMap.setLevel(4);
       kakaoMap.panTo(new kakao.maps.LatLng(b.lat, b.lng));
+      showLifeguardSpot(b);
     }
     showToast(LIFEGUARD_TIP[beachId] || (fullName(b) + " 위치로 이동했어요."));
   }
@@ -1128,13 +1224,15 @@
   el.reportOverlay.addEventListener("click", function (e) {
     if (e.target === el.reportOverlay || e.target.closest("#reportCloseBtn")) { closeReport(); return; }
     var pick = e.target.closest("[data-pick]");
-    if (pick) { state.reportBeachId = pick.getAttribute("data-pick"); state.reportZone = null; renderReportModal(); return; }
-    if (e.target.closest("#changeBeachBtn")) { state.reportBeachId = null; state.reportZone = null; renderReportModal(); return; }
+    if (pick) { state.reportBeachId = pick.getAttribute("data-pick"); state.reportZone = null; state.reportCount = null; renderReportModal(); return; }
+    if (e.target.closest("#changeBeachBtn")) { state.reportBeachId = null; state.reportZone = null; state.reportCount = null; renderReportModal(); return; }
     if (e.target.closest("#photoBtn")) { document.getElementById("photoInput").click(); return; }
     var zoneBtn = e.target.closest("[data-zone]");
     if (zoneBtn) { state.reportZone = zoneBtn.getAttribute("data-zone"); renderReportModal(); return; }
     var countBtn = e.target.closest("[data-count]");
-    if (countBtn && !countBtn.disabled) submitReport(countBtn.getAttribute("data-count"));
+    if (countBtn && !countBtn.disabled) { state.reportCount = countBtn.getAttribute("data-count"); renderReportModal(); return; }
+    var submitBtn = e.target.closest("#submitReportBtn");
+    if (submitBtn && !submitBtn.disabled) submitReport();
   });
   el.reportOverlay.addEventListener("change", function (e) {
     if (e.target.id === "photoInput" && e.target.files && e.target.files[0]) {
