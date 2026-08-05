@@ -389,21 +389,21 @@
   // sea: 백사장에서 바다 쪽으로 나가는 방향(구역 핀을 물가로 살짝 밀어냄)
   var BEACHES = [
     { id: "imnang",    name: "임랑",     searchName: "임랑해수욕장",   lat: 35.3283, lng: 129.2630, mx: 92, my: 8,
-      along: {la: 0.0016, ln: 0.0004}, sea: {la: 0, ln: 0.0018} },
+      along: {la: 0.00080, ln: 0.00020}, sea: {la: 0, ln: 0.0018} },
     { id: "ilgwang",   name: "일광",     searchName: "일광해수욕장",   lat: 35.2620, lng: 129.2361, mx: 88, my: 28,
-      along: {la: 0.0016, ln: 0.0003}, sea: {la: 0, ln: 0.0018} },
+      along: {la: 0.00080, ln: 0.00015}, sea: {la: 0, ln: 0.0018} },
     { id: "songjeong", name: "송정",     searchName: "송정해수욕장 부산", lat: 35.1788, lng: 129.2003, mx: 78, my: 55,
-      along: {la: 0.0004, ln: 0.0016}, sea: {la: -0.0016, ln: 0.0006} },
+      along: {la: 0.00020, ln: 0.00080}, sea: {la: -0.0016, ln: 0.0006} },
     { id: "haeundae",  name: "해운대",   searchName: "해운대해수욕장",  lat: 35.1587, lng: 129.1604, mx: 66, my: 60,
-      along: {la: 0.0002, ln: 0.0020}, sea: {la: -0.0016, ln: 0.0004} },
+      along: {la: 0.00010, ln: 0.00100}, sea: {la: -0.0016, ln: 0.0004} },
     { id: "gwangalli", name: "광안리",   searchName: "광안리해수욕장",  lat: 35.1532, lng: 129.1187, mx: 54, my: 62,
-      along: {la: 0.0016, ln: 0.0002}, sea: {la: -0.0002, ln: 0.0018} },
+      along: {la: 0.00080, ln: 0.00010}, sea: {la: -0.0002, ln: 0.0018} },
     { id: "songdo",    name: "송도",     searchName: "송도해수욕장 부산 서구", lat: 35.0778, lng: 129.0166, mx: 23, my: 82,
-      along: {la: 0.0003, ln: 0.0018}, sea: {la: -0.0016, ln: 0.0004} },
+      along: {la: 0.00015, ln: 0.00090}, sea: {la: -0.0016, ln: 0.0004} },
     { id: "gamji",     name: "감지해변", searchName: "감지해변 부산 영도구", lat: 35.0533, lng: 129.0873, mx: 44, my: 88,
-      along: {la: 0.0010, ln: -0.0010}, sea: {la: -0.0006, ln: 0.0022} },
+      along: {la: 0.00050, ln: -0.00050}, sea: {la: -0.0006, ln: 0.0022} },
     { id: "dadaepo",   name: "다대포",   searchName: "다대포해수욕장",  lat: 35.0416, lng: 128.9660, mx: 8, my: 92,
-      along: {la: 0.0006, ln: 0.0018}, sea: {la: -0.0016, ln: 0.0000} },
+      along: {la: 0.00030, ln: 0.00090}, sea: {la: -0.0016, ln: 0.0000} },
   ];
   // 해류 전파 순서: 동한난류를 따라 남 → 북 (다대포가 상류, 임랑이 하류)
   var DRIFT_ORDER = ["dadaepo", "songdo", "gamji", "gwangalli", "haeundae", "songjeong", "ilgwang", "imnang"];
