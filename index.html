@@ -1184,12 +1184,15 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     var cooldownMsg = cooldownLeft > 0
  ? '<div class="cooldownMsg">' + Math.ceil(cooldownLeft / 1000) + '초 남았습니다</div>'
       : '';
-    // 쿨다운이 끝나는 정확한 시점에 맞춰 딱 한 번 더 다시 그려서, 제출 버튼이 확실히 다시 눌리게 한다.
-    if (cooldownLeft > 0) {
-      if (cooldownRerenderTimer) clearTimeout(cooldownRerenderTimer);
-      cooldownRerenderTimer = setTimeout(function () {
-        if (!el.reportOverlay.classList.contains("hidden") && state.reportBeachId) renderReportModal();
-      }, cooldownLeft + 50);
+   if (cooldownLeft > 0) {
+  if (cooldownRerenderTimer) clearTimeout(cooldownRerenderTimer);
+
+  cooldownRerenderTimer = setTimeout(function () {
+    if (!el.reportOverlay.classList.contains("hidden") && state.reportBeachId) {
+      renderReportModal();
+    }
+  }, Math.min(1000, cooldownLeft));
+}
     }
 
     var submitDisabled = (!zone || !count || cooldownLeft > 0) ? "disabled" : "";
