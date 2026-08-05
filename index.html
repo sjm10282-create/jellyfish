@@ -1308,6 +1308,7 @@
         renderReportModal();
       };
       reader.readAsDataURL(e.target.files[0]);
+      lastModalRenderT = t;
     }
   });
 
@@ -1323,7 +1324,6 @@
     updateMap(scores);
 
     if (t - lastModalRenderT > 1000) {
-      lastModalRenderT = t;
       if (!el.infoOverlay.classList.contains("hidden")) renderInfoContent(scores);
       // 신고 모달은 여기서 주기적으로 다시 그리지 않는다. 쿨다운 중에도 구역·개수 버튼을
       // 자유롭게 누를 수 있어야 하므로, 매초 다시 그리면 그 순간 터치가 씹힐 수 있다.
