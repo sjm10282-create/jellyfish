@@ -375,21 +375,21 @@
   // along: 백사장이 뻗은 방향(이 방향으로 서/중/동 구역을 나눔)
   // sea: 백사장에서 바다 쪽으로 나가는 방향(구역 핀을 물가로 살짝 밀어냄)
   var BEACHES = [
-    { id: "imnang",    name: "임랑",     lat: 35.3546, lng: 129.2455, mx: 92, my: 8,
+    { id: "imnang",    name: "임랑",     searchName: "임랑해수욕장",   lat: 35.3283, lng: 129.2630, mx: 92, my: 8,
       along: {la: 0.0016, ln: 0.0004}, sea: {la: 0, ln: 0.0018} },
-    { id: "ilgwang",   name: "일광",     lat: 35.2823, lng: 129.2323, mx: 88, my: 28,
+    { id: "ilgwang",   name: "일광",     searchName: "일광해수욕장",   lat: 35.2620, lng: 129.2361, mx: 88, my: 28,
       along: {la: 0.0016, ln: 0.0003}, sea: {la: 0, ln: 0.0018} },
-    { id: "songjeong", name: "송정",     lat: 35.1788, lng: 129.2003, mx: 78, my: 55,
+    { id: "songjeong", name: "송정",     searchName: "송정해수욕장 부산", lat: 35.1788, lng: 129.2003, mx: 78, my: 55,
       along: {la: 0.0004, ln: 0.0016}, sea: {la: -0.0016, ln: 0.0006} },
-    { id: "haeundae",  name: "해운대",   lat: 35.1587, lng: 129.1604, mx: 66, my: 60,
+    { id: "haeundae",  name: "해운대",   searchName: "해운대해수욕장",  lat: 35.1587, lng: 129.1604, mx: 66, my: 60,
       along: {la: 0.0002, ln: 0.0020}, sea: {la: -0.0016, ln: 0.0004} },
-    { id: "gwangalli", name: "광안리",   lat: 35.1532, lng: 129.1187, mx: 54, my: 62,
+    { id: "gwangalli", name: "광안리",   searchName: "광안리해수욕장",  lat: 35.1532, lng: 129.1187, mx: 54, my: 62,
       along: {la: 0.0012, ln: 0.0012}, sea: {la: -0.0012, ln: 0.0012} },
-    { id: "songdo",    name: "송도",     lat: 35.0778, lng: 129.0166, mx: 23, my: 82,
+    { id: "songdo",    name: "송도",     searchName: "송도해수욕장 부산 서구", lat: 35.0778, lng: 129.0166, mx: 23, my: 82,
       along: {la: 0.0003, ln: 0.0018}, sea: {la: -0.0016, ln: 0.0004} },
-    { id: "gamji",     name: "감지해변", lat: 35.0550, lng: 129.0842, mx: 44, my: 88,
-      along: {la: 0.0012, ln: 0.0008}, sea: {la: -0.0008, ln: 0.0016} },
-    { id: "dadaepo",   name: "다대포",   lat: 35.0416, lng: 128.9660, mx: 8, my: 92,
+    { id: "gamji",     name: "감지해변", searchName: "감지해변",       lat: 35.0533, lng: 129.0873, mx: 44, my: 88,
+      along: {la: 0.0010, ln: -0.0010}, sea: {la: -0.0006, ln: 0.0022} },
+    { id: "dadaepo",   name: "다대포",   searchName: "다대포해수욕장",  lat: 35.0416, lng: 128.9660, mx: 8, my: 92,
       along: {la: 0.0006, ln: 0.0018}, sea: {la: -0.0016, ln: 0.0000} },
   ];
   // 해류 전파 순서: 동한난류를 따라 남 → 북 (다대포가 상류, 임랑이 하류)
@@ -403,6 +403,16 @@
   var ZONE_ZOOM_THRESHOLD = 7; // 이 레벨 이하(더 확대)면 구역 핀 표시
   var PHOTO_WEIGHT_BONUS = 1.5; // 사진 첨부 시 가중치 배수
   var REPORT_COOLDOWN_MS = 5000; // 부정 신고 방지: 실제 시간 기준 5초
+
+  // 해류가 실제로 흐르는 세밀한 순서: 한 해변 안에서도 서쪽 → 중앙 → 동쪽을 거친 뒤
+  // 다음 해변의 서쪽으로 넘어간다. (예: 송도서 → 송도중 → 송도동 → 감지서 → …)
+  var ZONE_FLOW = [];
+  DRIFT_ORDER.forEach(function (bid) {
+    ZONES.forEach(function (z) { ZONE_FLOW.push(bid + "_" + z); });
+  });
+  // 특정 해변+구역이 흐름 상 몇 번째 칸인지 빠르게 찾기 위한 색인
+  var ZONE_FLOW_INDEX = {};
+  ZONE_FLOW.forEach(function (key, i) { ZONE_FLOW_INDEX[key] = i; });
 
   var ADVISORY = {
     imnang: false, ilgwang: false, songjeong: true, haeundae: true,
@@ -430,8 +440,8 @@
 
   var SIM_MIN_PER_REAL_SEC = 3;
   var HALF_LIFE_MIN = 90;
-  var DRIFT_HOP_MIN = 20;
-  var DRIFT_CARRYOVER = 0.85;
+  var DRIFT_HOP_MIN = 7;   // 구역 한 칸(서→중, 중→동, 동→다음해변 서)을 이동하는 데 걸리는 시간
+  var DRIFT_CARRYOVER = 0.95; // 구역 한 칸 이동 시 전달 비율(칸이 잘게 나뉘었으므로 손실도 작게)
 
   var STATUS = {
     safe:    { label: "안전", color: "#2fae5c" },
@@ -448,6 +458,7 @@
   }
 
   // 해변 전체 + 구역별 점수를 동시에 계산
+  // 해변 전체 + 구역별 점수를 구역 흐름(ZONE_FLOW)을 따라 계산한다.
   function computeScores(reports, simMin) {
     var acc = {};
     BEACHES.forEach(function (b) {
@@ -456,34 +467,38 @@
         acc[b.id + "_" + z] = { local: 0, drifted: 0, localCount: 0, driftedCount: 0 };
       });
     });
+
+    // 하나의 출발 구역에서 시작한 신고가 흐름을 타고 이동한 결과를 누적
+    function accumulate(startKey, weight0, age) {
+      var startIdx = ZONE_FLOW_INDEX[startKey];
+      if (startIdx == null) return;
+      var hop = Math.floor(age / DRIFT_HOP_MIN);
+      var curIdx = startIdx + hop;
+      if (curIdx >= ZONE_FLOW.length) return; // 임랑 동쪽을 지나 먼바다로 소실
+      var curKey = ZONE_FLOW[curIdx];
+      var curBeach = curKey.split("_")[0];
+      var w = weight0 * decayWeight(age) * Math.pow(DRIFT_CARRYOVER, hop);
+      // 구역 점수
+      if (hop === 0) { acc[curKey].local += w; acc[curKey].localCount += 1; }
+      else { acc[curKey].drifted += w; acc[curKey].driftedCount += 1; }
+      // 해변 전체 점수(구역 점수를 해변 단위로도 합산)
+      if (hop === 0) { acc[curBeach].local += w; acc[curBeach].localCount += 1; }
+      else { acc[curBeach].drifted += w; acc[curBeach].driftedCount += 1; }
+    }
+
     reports.forEach(function (r) {
       var age = simMin - r.ts;
       if (age < 0) return;
-      var originIndex = DRIFT_ORDER.indexOf(r.beach);
-      var hop = Math.floor(age / DRIFT_HOP_MIN);
-      var curIndex = originIndex + hop;
-      if (curIndex >= DRIFT_ORDER.length) return;
-      var curId = DRIFT_ORDER[curIndex];
-      var w = decayWeight(age) * COUNT_INTENSITY[r.count] * Math.pow(DRIFT_CARRYOVER, hop);
-      if (r.hasPhoto) w *= PHOTO_WEIGHT_BONUS;
+      var base = COUNT_INTENSITY[r.count] * (r.hasPhoto ? PHOTO_WEIGHT_BONUS : 1);
       var zone = r.zone || "all";
-      // 해변 전체 점수에 항상 반영
-      if (hop === 0) { acc[curId].local += w; acc[curId].localCount += 1; }
-      else { acc[curId].drifted += w; acc[curId].driftedCount += 1; }
-      // 구역별 점수 반영
       if (zone === "all") {
-        ZONES.forEach(function (z) {
-          var zKey = curId + "_" + z;
-          var zw = w / 3;
-          if (hop === 0) { acc[zKey].local += zw; acc[zKey].localCount += 1; }
-          else { acc[zKey].drifted += zw; acc[zKey].driftedCount += 1; }
-        });
+        // 전체 신고: 세 구역에서 각각 1/3씩 출발한 것으로 처리 → 동/중/서 모두 소폭 상승
+        ZONES.forEach(function (z) { accumulate(r.beach + "_" + z, base / 3, age); });
       } else {
-        var zKey = curId + "_" + zone;
-        if (hop === 0) { acc[zKey].local += w; acc[zKey].localCount += 1; }
-        else { acc[zKey].drifted += w; acc[zKey].driftedCount += 1; }
+        accumulate(r.beach + "_" + zone, base, age);
       }
     });
+
     var out = {};
     function buildEntry(key, beachId) {
       var total = acc[key].local + acc[key].drifted;
@@ -505,11 +520,11 @@
 
   function seedReports() {
     return [
-      { id: 1, beach: "haeundae",  count: "few",  ts: -25 },
-      { id: 2, beach: "haeundae",  count: "many", ts: -12 },
-      { id: 3, beach: "haeundae",  count: "few",  ts: -5 },
-      { id: 5, beach: "songjeong", count: "few",  ts: -35 },
-      { id: 6, beach: "songjeong", count: "few",  ts: -10 },
+      { id: 1, beach: "haeundae",  zone: "c", count: "few",  ts: -25 },
+      { id: 2, beach: "haeundae",  zone: "c", count: "many", ts: -12 },
+      { id: 3, beach: "haeundae",  zone: "e", count: "few",  ts: -5 },
+      { id: 5, beach: "songjeong", zone: "c", count: "few",  ts: -20 },
+      { id: 6, beach: "songjeong", zone: "w", count: "few",  ts: -6 },
     ];
   }
 
@@ -611,7 +626,40 @@
     openInfo(beachId, zone);
   }
 
+  // 카카오 장소검색으로 각 해수욕장의 실제 좌표를 받아와 BEACHES 좌표를 보정한다.
+  // (검색 실패 시엔 코드에 적힌 기본 좌표를 그대로 사용)
+  function geocodeBeaches(done) {
+    if (!(kakao.maps.services && kakao.maps.services.Places)) { done(); return; }
+    var places = new kakao.maps.services.Places();
+    var remaining = BEACHES.length;
+    var finished = false;
+    function checkDone() {
+      remaining -= 1;
+      if (remaining <= 0 && !finished) { finished = true; done(); }
+    }
+    // 혹시 콜백이 안 오는 경우를 대비한 안전장치 (3초 후 강제 진행)
+    setTimeout(function () { if (!finished) { finished = true; done(); } }, 3000);
+    BEACHES.forEach(function (b) {
+      places.keywordSearch(b.searchName || b.name, function (data, status) {
+        if (status === kakao.maps.services.Status.OK && data && data.length) {
+          var top = data[0];
+          var la = parseFloat(top.y), ln = parseFloat(top.x);
+          // 부산 인근(위도 34.9~35.5, 경도 128.8~129.4) 범위 안일 때만 신뢰
+          if (la > 34.9 && la < 35.5 && ln > 128.8 && ln < 129.4) {
+            b.lat = la; b.lng = ln;
+          }
+        }
+        checkDone();
+      });
+    });
+  }
+
   function initKakaoMap() {
+    // 먼저 실제 좌표를 보정한 뒤 지도를 그린다.
+    geocodeBeaches(function () { drawMap(); });
+  }
+
+  function drawMap() {
     var container = document.getElementById("kakaoMap");
     var bounds = new kakao.maps.LatLngBounds();
     BEACHES.forEach(function (b) { bounds.extend(new kakao.maps.LatLng(b.lat, b.lng)); });
@@ -642,21 +690,31 @@
       });
     });
 
-    // 해류 방향 표시선: 각 해변에서 바다 쪽으로 나온 지점을 이어 육지를 가로지르지 않게 한다.
-    // (해변 지점을 그대로 직선으로 이으면 반도·곶을 가로질러 육지 위를 지나가므로,
-    //  sea 방향으로 크게 밀어낸 '앞바다 지점'을 곡선으로 잇는다.)
-    var SEA_OUT = 3.2; // 앞바다로 밀어내는 배수
-    var offshore = DRIFT_ORDER.map(function (id) {
-      var b = BEACHES.filter(function (x) { return x.id === id; })[0];
-      return { la: b.lat + b.sea.la * SEA_OUT, ln: b.lng + b.sea.ln * SEA_OUT };
-    });
-    // Catmull-Rom 곡선을 위경도로 샘플링해 부드러운 앞바다 경로를 만든다.
+    // 해류 방향 표시선: 그림판으로 표시한 실제 해안선 경로를 위경도로 직접 정의한다.
+    // (다대포 앞바다 → 영도 남단을 크게 감싸 → 광안리·해운대 앞바다 → 송정·일광·임랑 → 북동 먼바다)
+    var CURRENT_ROUTE = [
+      { la: 35.028, ln: 128.965 }, // 다대포 남쪽 앞바다
+      { la: 35.035, ln: 129.010 },
+      { la: 35.048, ln: 129.018 }, // 송도 앞
+      { la: 35.028, ln: 129.055 },
+      { la: 35.018, ln: 129.085 }, // 영도 남단 크게 감싸기
+      { la: 35.055, ln: 129.115 },
+      { la: 35.110, ln: 129.125 }, // 광안리 앞바다
+      { la: 35.145, ln: 129.150 },
+      { la: 35.150, ln: 129.180 }, // 해운대 앞
+      { la: 35.165, ln: 129.210 }, // 송정 앞
+      { la: 35.230, ln: 129.245 }, // 일광 앞
+      { la: 35.310, ln: 129.260 },
+      { la: 35.355, ln: 129.270 }, // 임랑 앞
+      { la: 35.400, ln: 129.290 }, // 북동 먼바다로 빠짐
+    ];
+    // Catmull-Rom으로 부드럽게 이어 해안선을 따라 흐르는 곡선을 만든다.
     var flowPath = [];
-    for (var i = 0; i < offshore.length - 1; i++) {
-      var p0 = offshore[i - 1] || offshore[i];
-      var p1 = offshore[i];
-      var p2 = offshore[i + 1];
-      var p3 = offshore[i + 2] || p2;
+    for (var i = 0; i < CURRENT_ROUTE.length - 1; i++) {
+      var p0 = CURRENT_ROUTE[i - 1] || CURRENT_ROUTE[i];
+      var p1 = CURRENT_ROUTE[i];
+      var p2 = CURRENT_ROUTE[i + 1];
+      var p3 = CURRENT_ROUTE[i + 2] || p2;
       for (var t = 0; t < 1; t += 0.1) {
         var t2 = t * t, t3 = t2 * t;
         var la = 0.5 * ((2 * p1.la) + (-p0.la + p2.la) * t +
@@ -668,7 +726,7 @@
         flowPath.push(new kakao.maps.LatLng(la, ln));
       }
     }
-    var lastP = offshore[offshore.length - 1];
+    var lastP = CURRENT_ROUTE[CURRENT_ROUTE.length - 1];
     flowPath.push(new kakao.maps.LatLng(lastP.la, lastP.ln));
     var flowLine = new kakao.maps.Polyline({
       path: flowPath, strokeWeight: 3, strokeColor: "#2f7fae", strokeOpacity: 0.6, strokeStyle: "shortdash",
@@ -709,7 +767,7 @@
       return;
     }
     var s = document.createElement("script");
-    s.src = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=" + KAKAO_JS_KEY + "&autoload=false";
+    s.src = "https://dapi.kakao.com/v2/maps/sdk.js?appkey=" + KAKAO_JS_KEY + "&autoload=false&libraries=services";
     s.onload = function () { kakao.maps.load(initKakaoMap); };
     s.onerror = function () {
       el.mapLoading.innerHTML = "지도를 불러오지 못했어요.<br>키 또는 등록된 도메인을 확인해 주세요.";
