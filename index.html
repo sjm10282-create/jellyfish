@@ -231,7 +231,7 @@
   .kPin.zonePin .kPinCenter { inset: 8px; }
   .kPin.zonePin .kPinPulse { display: none; }
   .kPin.zonePin .kPinDriftRing { display: none; }
-  .cooldownMsg {text-align: center; font-size: 13px; color: #a8760a; background: #fdf3dd; border: 1px solid #f0d9a0;
+  .cooldownMsg { font-size: 12px; color: #a8760a; background: #fdf3dd; border: 1px solid #f0d9a0;
     border-radius: 9px; padding: 9px 12px; margin-top: 10px; font-weight: 600; line-height: 1.5; }
 
   /* 토스트 */
@@ -881,8 +881,7 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     el.mapLoading.style.display = "none";
     updateMap(computeScores(state.reports, state.simMin));
 
- 
-  }
+    
 
   // ── 내 위치(파란 점) 표시 ────────────────────────────────
   // 해변/구역 마커(초록 원)와는 완전히 분리된 별도 오버레이다.
@@ -1181,17 +1180,14 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     var now = Date.now();
     var cooldownLeft = Math.max(0, REPORT_COOLDOWN_MS - (now - state.lastReportRealTime));
     var cooldownMsg = cooldownLeft > 0
- ? '<div class="cooldownMsg">' + Math.ceil(cooldownLeft / 1000) + '초 남았습니다</div>'
+      ? '<div class="cooldownMsg">' + Math.ceil(cooldownLeft/1000) + '초 남았습니다</div>'
       : '';
-   if (cooldownLeft > 0) {
-  if (cooldownRerenderTimer) clearTimeout(cooldownRerenderTimer);
-
-  cooldownRerenderTimer = setTimeout(function () {
-    if (!el.reportOverlay.classList.contains("hidden") && state.reportBeachId) {
-      renderReportModal();
-    }
-  }, Math.min(1000, cooldownLeft));
-}
+    // 쿨다운이 끝나는 정확한 시점에 맞춰 딱 한 번 더 다시 그려서, 제출 버튼이 확실히 다시 눌리게 한다.
+    if (cooldownLeft > 0) {
+      if (cooldownRerenderTimer) clearTimeout(cooldownRerenderTimer);
+      cooldownRerenderTimer = setTimeout(function () {
+        if (!el.reportOverlay.classList.contains("hidden") && state.reportBeachId) renderReportModal();
+      }, cooldownLeft + 50);
     }
 
     var submitDisabled = (!zone || !count || cooldownLeft > 0) ? "disabled" : "";
@@ -1229,7 +1225,7 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     // 쿨다운 체크
     var now = Date.now();
     if (now - state.lastReportRealTime < REPORT_COOLDOWN_MS) {
-      showToast(Math.ceil((REPORT_COOLDOWN_MS - (now - state.lastReportRealTime)) / 1000) + "초 후 제출 가능");
+      showToast(Math.ceil((REPORT_COOLDOWN_MS - (now - state.lastReportRealTime)) / 1000) + "초 남았습니다");
       renderReportModal();
       return;
     }
