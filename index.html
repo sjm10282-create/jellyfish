@@ -509,6 +509,20 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     return Math.sqrt(dx * dx + dy * dy);
   }
 
+  // 해변마다 서/중/동을 정확히 3개의 실측 앵커 점으로 입력해 두었을 때 쓰는 헬퍼.
+  // "전체 길이의 50% 지점"으로 중앙을 계산하면, 서-중 구간과 중-동 구간의 길이가 서로
+  // 다를 때 실제로 입력해 둔 중앙 좌표에서 수십~백여 미터씩 어긋난다(구간이 다르면
+  // 50% 지점이 중간점을 그대로 지나쳐 버리기 때문). shoreline이 정확히 3점이면
+  // 그 점들을 그대로(서=0번째, 중=1번째, 동=2번째) 쓰고, 3점이 아니면 예전처럼
+  // 길이 비율(ratio) 보간으로 대체한다.
+  function zonePoint(points, zone, fallback) {
+    if (points && points.length === 3) {
+      var idx = { w: 0, c: 1, e: 2 }[zone];
+      return points[idx];
+    }
+    return pointOnShoreline(points, ZONE_RATIO[zone], fallback);
+  }
+
   // 해안선(points, [{lat,lng}, ...])을 따라 전체 길이의 ratio(0~1) 지점 좌표를 보간한다.
   // 점이 2개 미만이거나 비어 있으면 오류 없이 fallback 좌표를 그대로 반환한다.
   // 반환되는 점은 항상 해안선 선분 "위"에 있으며, 별도의 바다 방향 오프셋은 더하지 않는다.
@@ -802,20 +816,20 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     var zoomControl = new kakao.maps.ZoomControl();
     kakaoMap.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
 
-    // 해변 전체 핀 (기본 표시) — shoreline의 50% 지점(없으면 lat/lng fallback)에 놓는다.
+    // 해변 전체 핀 (기본 표시) — shoreline의 중앙 지점(없으면 lat/lng fallback)에 놓는다.
     BEACHES.forEach(function (b) {
       var fallback = { lat: b.lat, lng: b.lng };
-      var p = pointOnShoreline(b.shoreline, 0.5, fallback);
+      var p = zonePoint(b.shoreline, "c", fallback);
       buildPinOverlay({ key: b.id, beachId: b.id, name: b.name, lat: p.lat, lng: p.lng });
     });
 
     // 구역 핀 (서/중/동) — 처음엔 숨겨두고, 일정 수준 이상 확대하면 나타난다.
-    // shoreline을 따라 25%/50%/75% 지점에 놓는다(별도의 바다 방향 오프셋 없음).
+    // shoreline이 정확히 3점(서/중/동)이면 그 점들을 그대로 쓰고, 아니면 길이 비율로 보간한다.
     // shoreline이 없는 해변은 세 구역 모두 같은 fallback 지점에 겹쳐서 표시된다.
     BEACHES.forEach(function (b) {
       var fallback = { lat: b.lat, lng: b.lng };
       ZONES.forEach(function (z) {
-        var p = pointOnShoreline(b.shoreline, ZONE_RATIO[z], fallback);
+        var p = zonePoint(b.shoreline, z, fallback);
         buildPinOverlay({
           key: b.id + "_" + z, beachId: b.id, zone: z,
           lat: p.lat, lng: p.lng, initialVisible: false,
@@ -1174,7 +1188,7 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     var now = Date.now();
     var cooldownLeft = Math.max(0, REPORT_COOLDOWN_MS - (now - state.lastReportRealTime));
     var cooldownMsg = cooldownLeft > 0
-      ? '<div class="cooldownMsg">조금 전에 신고를 접수했어요. ' + Math.ceil(cooldownLeft/1000) + '초 후에 제출할 수 있어요. 그동안 구역·개수·사진은 미리 골라둘 수 있어요.</div>'
+      ? '<div class="cooldownMsg">' + Math.ceil(cooldownLeft/1000) + '초 후 제출 가능</div>'
       : '';
     // 쿨다운이 끝나는 정확한 시점에 맞춰 딱 한 번 더 다시 그려서, 제출 버튼이 확실히 다시 눌리게 한다.
     if (cooldownLeft > 0) {
@@ -1219,7 +1233,7 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     // 쿨다운 체크
     var now = Date.now();
     if (now - state.lastReportRealTime < REPORT_COOLDOWN_MS) {
-      showToast("조금 전에 신고를 접수했어요. 잠시 후 다시 시도해 주세요.");
+      showToast(Math.ceil((REPORT_COOLDOWN_MS - (now - state.lastReportRealTime)) / 1000) + "초 후 제출 가능");
       renderReportModal();
       return;
     }
@@ -1255,11 +1269,7 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
   // 안전요원 부스는 보통 백사장 중앙 부근에 있다고 가정해, 해변 대표 지점(shoreline의
   // 50% 지점, 없으면 lat/lng fallback)을 그대로 부스 위치로 삼는다.
 function lifeguardSpot(b) {
-  var shore = pointOnShoreline(
-    b.shoreline,
-    0.5,
-    { lat: b.lat, lng: b.lng }
-  );
+  var shore = zonePoint(b.shoreline, "c", { lat: b.lat, lng: b.lng });
 
   var offset = LIFEGUARD_LAND_OFFSET[b.id] || { lat: 0, lng: 0 };
 
