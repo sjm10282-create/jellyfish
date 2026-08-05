@@ -397,7 +397,7 @@
     { id: "haeundae",  name: "해운대",   searchName: "해운대해수욕장",  lat: 35.1587, lng: 129.1604, mx: 66, my: 60,
       along: {la: 0.0002, ln: 0.0020}, sea: {la: -0.0016, ln: 0.0004} },
     { id: "gwangalli", name: "광안리",   searchName: "광안리해수욕장",  lat: 35.1532, lng: 129.1187, mx: 54, my: 62,
-      along: {la: 0.0012, ln: 0.0012}, sea: {la: -0.0012, ln: 0.0012} },
+      along: {la: 0.0016, ln: 0.0002}, sea: {la: -0.0002, ln: 0.0018} },
     { id: "songdo",    name: "송도",     searchName: "송도해수욕장 부산 서구", lat: 35.0778, lng: 129.0166, mx: 23, my: 82,
       along: {la: 0.0003, ln: 0.0018}, sea: {la: -0.0016, ln: 0.0004} },
     { id: "gamji",     name: "감지해변", searchName: "감지해변 부산 영도구", lat: 35.0533, lng: 129.0873, mx: 44, my: 88,
@@ -732,7 +732,7 @@
     // 구역 핀 (서/중/동) — 처음엔 숨겨두고, 일정 수준 이상 확대하면 나타난다
     // 백사장 방향(along)을 따라 좌우로 나누고, 바다 쪽(sea)으로 아주 살짝만 밀어 물가/백사장에 배치한다.
     // (sea 오프셋을 그대로 다 쓰면 실제 지도에서 물 위로 나가버리는 경우가 있어 배수를 줄인다.)
-    var ZONE_SEA_FACTOR = 0.25;
+    var ZONE_SEA_FACTOR = 0.4;
     BEACHES.forEach(function (b) {
       ZONES.forEach(function (z) {
         var f = ZONE_ALONG_FACTOR[z];
