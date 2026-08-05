@@ -1112,10 +1112,10 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
   // 공유 UX 흐름 자체를 보여주는 데모로 구성했다(가짜 친구 목록).
   // "링크 복사"만 navigator.clipboard로 실제 동작한다.
   var SHARE_PLATFORMS = [
-    { id: "kakao", label: "카카오톡", emoji: "💬", bg: "#fee500" },
-    { id: "instagram", label: "인스타그램", emoji: "📷", bg: "#e1306c" },
-    { id: "message", label: "메시지", emoji: "✉️", bg: "#34c759" },
-    { id: "link", label: "링크 복사", emoji: "🔗", bg: "#8a9a8f" },
+    { id: "kakao", label: "카카오톡", initial: "카", bg: "#fee500" },
+    { id: "instagram", label: "인스타그램", initial: "인", bg: "#e1306c" },
+    { id: "message", label: "메시지", initial: "메", bg: "#34c759" },
+    { id: "link", label: "링크 복사", initial: "링", bg: "#8a9a8f" },
   ];
   var SHARE_FRIENDS = ["민서", "지훈", "예린", "도윤"];
 
@@ -1128,7 +1128,7 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     var sc = zone ? scores[beachId + "_" + zone] : scores[beachId];
     var st = STATUS[sc.status];
     var zoneTxt = zone ? " " + ZONE_LABEL[zone] + " 구역" : "";
-    return fullName(b) + zoneTxt + " 지금 " + st.label + " 단계예요 🪼 Jelly Ping에서 실시간 확인하기";
+    return fullName(b) + zoneTxt + " 지금 " + st.label + " 단계예요 Jelly Ping에서 실시간 확인하기";
   }
 
   function openShare(beachId, zone) {
@@ -1175,7 +1175,7 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     var optionsHtml = SHARE_PLATFORMS.map(function (p) {
       return (
         '<button class="shareOption" data-platform="' + p.id + '">' +
-          '<span class="shareIconCircle" style="background:' + p.bg + '">' + p.emoji + '</span>' +
+          '<span class="shareIconCircle" style="background:' + p.bg + ';color:' + (p.id === "kakao" ? "#3c1e1e" : "#ffffff") + '">' + p.initial + '</span>' +
           '<span class="shareOptionLabel">' + p.label + '</span>' +
         '</button>'
       );
