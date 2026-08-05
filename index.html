@@ -100,7 +100,6 @@
   .actionBtn .aLabel { font-size: 13.5px; font-weight: 800; }
   .aidAction { background: #fdece8; color: #c23f28; box-shadow: 0 3px 12px rgba(194,63,40,0.18); }
   .reportAction { background: #16321f; color: #ffffff; box-shadow: 0 3px 12px rgba(22,50,31,0.28); }
-  .reportAction.active { background: #2f7fae; }
 
   /* 모달 공통 */
   .overlay { position: fixed; inset: 0; background: rgba(20,35,25,0.45); display: flex;
@@ -200,6 +199,7 @@
     font-size: 11px; font-weight: 800; color: #16321f; white-space: nowrap; pointer-events: none;
     text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff,
                  1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff; }
+  .kBeachLabel--low { bottom: -30px; }
   /* 구역 핀 라벨 (작은 글씨) */
   .kZoneLabel { position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%);
     font-size: 9px; font-weight: 800; color: #16321f; white-space: nowrap;
@@ -515,7 +515,6 @@
     playing: true,
     infoBeachId: null,
     infoZone: null,       // 구역 핀을 눌렀을 때 어느 구역을 강조할지
-    reportMode: false,      // 지도에서 해변을 고르는 중인지
     reportBeachId: null,    // 신고 대상으로 선택된 해변
     reportZone: null,       // "w"/"c"/"e"/"all" or null
     reportPhoto: null,      // data URL
@@ -534,7 +533,6 @@
     cautionCount: document.getElementById("cautionCount"),
     totalReports: document.getElementById("totalReports"),
     mapLoading: document.getElementById("mapLoading"),
-    reportBannerCancel: null,
     openReportBtn: document.getElementById("openReportBtn"),
     infoOverlay: document.getElementById("infoOverlay"),
     infoContent: document.getElementById("infoContent"),
@@ -567,7 +565,9 @@
     if (opts.zone) {
       labelHtml = '<span class="kZoneLabel">' + ZONE_LABEL[opts.zone] + '</span>';
     } else if (opts.name) {
-      labelHtml = '<span class="kBeachLabel">' + opts.name + '</span>';
+      // 송도와 매우 가까운 감지해변은 라벨을 조금 아래로 내려 겹치지 않게 한다
+      var lowCls = opts.beachId === "gamji" ? " kBeachLabel--low" : "";
+      labelHtml = '<span class="kBeachLabel' + lowCls + '">' + opts.name + '</span>';
     }
     wrap.innerHTML =
       '<span class="kPinPulse"></span>' +
@@ -646,16 +646,17 @@
     updateMap(computeScores(state.reports, state.simMin));
   }
 
+  var lastShowZones = null;
   function handleZoomChange() {
     if (!kakaoMap) return;
     var level = kakaoMap.getLevel();
     var showZones = level <= ZONE_ZOOM_THRESHOLD;
+    if (showZones === lastShowZones) return; // 표시 단계가 그대로면 아무것도 안 함
+    lastShowZones = showZones;
     BEACHES.forEach(function (b) {
-      // 해변 전체 핀: 확대 시 숨김, 축소 시 표시
       if (pinEls[b.id] && pinEls[b.id].overlay) {
         pinEls[b.id].overlay.setVisible(!showZones);
       }
-      // 구역 핀: 확대 시 표시, 축소 시 숨김
       ZONES.forEach(function (z) {
         var zId = b.id + "_" + z;
         if (pinEls[zId] && pinEls[zId].overlay) {
@@ -680,29 +681,34 @@
   }
 
   // ── 갱신 ─────────────────────────────────────────────────
+  // 핀의 현재 표시 상태를 기억해 두고, 실제로 바뀐 것만 DOM에 반영한다.
+  // (매 프레임 모든 핀의 style/class를 새로 쓰면 지도 위 오버레이가 초당 60번 갱신돼
+  //  확대·축소·드래그가 버벅일 수 있으므로, 변화가 있을 때만 건드린다.)
+  var pinCache = {};
+  function applyPinState(refs, cacheKey, color, danger, drifted) {
+    var prev = pinCache[cacheKey];
+    if (prev && prev.color === color && prev.danger === danger && prev.drifted === drifted) return;
+    refs.fill.style.background = color;
+    if (refs.pulse) { refs.pulse.style.background = color; refs.pulse.classList.toggle("on", danger); }
+    if (refs.driftRing) refs.driftRing.classList.toggle("on", drifted);
+    pinCache[cacheKey] = { color: color, danger: danger, drifted: drifted };
+  }
+
   function updateMap(scores) {
     if (!kakaoMap) return;
     BEACHES.forEach(function (b) {
-      // 해변 전체 핀 갱신
       var refs = pinEls[b.id];
       if (refs) {
         var sc = scores[b.id], st = STATUS[sc.status];
-        refs.fill.style.background = st.color;
-        var isDanger = sc.status === "danger";
-        refs.pulse.style.background = st.color;
-        refs.pulse.classList.toggle("on", isDanger);
-        refs.driftRing.classList.toggle("on", sc.drifted > 0.15);
-        refs.selRing.classList.toggle("on", false);
+        applyPinState(refs, b.id, st.color, sc.status === "danger", sc.drifted > 0.15);
       }
-      // 구역별 핀 갱신
       ZONES.forEach(function (z) {
         var zId = b.id + "_" + z;
         var zRefs = pinEls[zId];
         if (!zRefs) return;
         var zSc = scores[zId];
         if (!zSc) return;
-        var zSt = STATUS[zSc.status];
-        zRefs.fill.style.background = zSt.color;
+        applyPinState(zRefs, zId, STATUS[zSc.status].color, false, false);
       });
     });
   }
@@ -1058,7 +1064,11 @@
     if (t - lastModalRenderT > 1000) {
       lastModalRenderT = t;
       if (!el.infoOverlay.classList.contains("hidden")) renderInfoContent(scores);
-      if (!el.reportOverlay.classList.contains("hidden") && state.reportBeachId) renderReportModal(scores);
+      // 신고 모달은 쿨다운 카운트다운이 도는 동안에만 갱신 (평소엔 버튼 터치가 씹히지 않도록 재렌더 안 함)
+      if (!el.reportOverlay.classList.contains("hidden") && state.reportBeachId &&
+          Date.now() - state.lastReportRealTime < REPORT_COOLDOWN_MS) {
+        renderReportModal(scores);
+      }
     }
 
     requestAnimationFrame(tick);
