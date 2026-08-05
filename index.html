@@ -151,7 +151,7 @@
     align-items: center; gap: 7px; cursor: pointer; padding: 6px 0; }
   .shareOption:active { transform: scale(0.95); }
   .shareIconCircle { width: 52px; height: 52px; border-radius: 50%; display: flex;
-    align-items: center; justify-content: center; font-size: 22px; }
+    align-items: center; justify-content: center; font-size: 22px; font-weight: 800; }
   .shareOptionLabel { font-size: 11.5px; font-weight: 700; color: #2c3d31; }
   .sharePreview { margin-top: 14px; background: #f6f9f4; border-radius: 12px; padding: 12px 14px;
     font-size: 12.5px; color: #4a5f52; line-height: 1.6; font-weight: 600; }
@@ -439,7 +439,7 @@
    // 각 해변의 서·중·동 해안선 앵커 좌표
   var BEACHES = [
     {
-      id: "imnang", name: "임랑", searchName: "임랑해수욕장",
+      id: "imnang", name: "임랑",
       lat: 35.319904, lng: 129.265701, mx: 92, my: 8,
       shoreline: [
         { lat: 35.318238, lng: 129.264051 },
@@ -448,7 +448,7 @@
       ]
     },
     {
-      id: "ilgwang", name: "일광", searchName: "일광해수욕장",
+      id: "ilgwang", name: "일광",
       lat: 35.261615, lng: 129.233883, mx: 88, my: 28,
       shoreline: [
         { lat: 35.257724, lng: 129.236398 },
@@ -457,7 +457,7 @@
       ]
     },
     {
-      id: "songjeong", name: "송정", searchName: "송정해수욕장 부산",
+      id: "songjeong", name: "송정",
       lat: 35.175985, lng: 129.197803, mx: 78, my: 55,
       shoreline: [
         { lat: 35.171340, lng: 129.198060 },
@@ -466,7 +466,7 @@
       ]
     },
     {
-      id: "haeundae", name: "해운대", searchName: "해운대해수욕장",
+      id: "haeundae", name: "해운대",
       lat: 35.158102, lng: 129.161084, mx: 66, my: 60,
       shoreline: [
         { lat: 35.155678, lng: 129.154773 },
@@ -475,7 +475,7 @@
       ]
     },
     {
-         id: "gwangalli", name: "광안리", searchName: "광안리해수욕장",
+         id: "gwangalli", name: "광안리",
       lat: 35.152418, lng: 129.118490, mx: 54, my: 62,
       shoreline: [
         { lat: 35.146436, lng: 129.115239 },
@@ -484,7 +484,7 @@
       ]
     },
     {
-      id: "songdo", name: "송도", searchName: "송도해수욕장 부산 서구",
+      id: "songdo", name: "송도",
       lat: 35.075730, lng: 129.017971, mx: 23, my: 82,
       shoreline: [
         { lat: 35.073824, lng: 129.017065 },
@@ -493,7 +493,7 @@
       ]
     },
     {
-      id: "gamji", name: "감지해변", searchName: "감지해변 부산 영도구",
+      id: "gamji", name: "감지해변",
       lat: 35.060347, lng: 129.077415, mx: 44, my: 88,
       shoreline: [
         { lat: 35.059908, lng: 129.077561 },
@@ -502,7 +502,7 @@
       ]
     },
     {
-      id: "dadaepo", name: "다대포", searchName: "다대포해수욕장",
+      id: "dadaepo", name: "다대포",
       lat: 35.046417, lng: 128.961705, mx: 8, my: 92,
       shoreline: [
         { lat: 35.043181, lng: 128.967601 },
@@ -608,7 +608,6 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     dadaepo: "지도의 빨간 점 근처, 중앙 광장 앞 안전센터를 확인해 보세요.",
   };
 
-  var COUNT_LABEL = { one: "1마리", few: "여러 마리", many: "떼로 출현" };
   function fullName(b) {
     if (/해변$|해수욕장$/.test(b.name)) return b.name;
     return b.name + "해수욕장";
@@ -628,7 +627,6 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     caution: { label: "주의", color: "#e0b400" },
     danger:  { label: "위험", color: "#e0402f" },
   };
-  var STATUS_ORDER = { danger: 0, caution: 1, safe: 2 };
 
   function decayWeight(ageMin) { return Math.pow(0.5, Math.max(0, ageMin) / HALF_LIFE_MIN); }
   function classify(total) {
@@ -750,6 +748,7 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     shareZone: null,        // 공유 모달을 연 시점의 구역(있으면)
     shareStep: null,        // null | "platform" | "friends"
     sharePlatform: null,    // "kakao" | "instagram" | "message" | "link"
+    shareFriends: null,     // 친구 단계에서 무작위로 뽑힌 4명(선택 시점에 한 번 뽑아 고정)
   };
   var lastFrame = null, toastTimer = null, lastModalRenderT = 0, cooldownRerenderTimer = null;
 
@@ -922,6 +921,7 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
 
     el.mapLoading.style.display = "none";
     updateMap(computeScores(state.reports, state.simMin));
+    openSharedBeachFromUrl();
   }
 
   // ── 내 위치(파란 점) 표시 ────────────────────────────────
@@ -1117,7 +1117,17 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     { id: "message", label: "메시지", initial: "메", bg: "#34c759" },
     { id: "link", label: "링크 복사", initial: "링", bg: "#8a9a8f" },
   ];
-  var SHARE_FRIENDS = ["민서", "지훈", "예린", "도윤"];
+  var SHARE_FRIEND_POOL = ["민서", "지훈", "예린", "도윤", "하은", "시우", "채원", "준서", "다인", "우진"];
+
+  // 배열에서 중복 없이 n개를 무작위로 뽑는다(Fisher-Yates 셔플 후 앞에서 n개).
+  function pickRandomFriends(n) {
+    var pool = SHARE_FRIEND_POOL.slice();
+    for (var i = pool.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+    }
+    return pool.slice(0, n);
+  }
 
   function shareMessageText() {
     var beachId = state.shareBeachId;
@@ -1129,6 +1139,35 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     var st = STATUS[sc.status];
     var zoneTxt = zone ? " " + ZONE_LABEL[zone] + " 구역" : "";
     return fullName(b) + zoneTxt + " 지금 " + st.label + " 단계예요 Jelly Ping에서 실시간 확인하기";
+  }
+
+  // 지금 이 앱이 열려 있는 실제 주소(GitHub Pages 등 배포 주소)에 해변·구역
+  // 쿼리스트링을 붙여, 받은 사람이 링크를 열면 바로 그 해변 정보가 뜨도록 만든다.
+  function shareDeepLink() {
+    var url = new URL(window.location.href);
+    var params = new URLSearchParams();
+    if (state.shareBeachId) params.set("beach", state.shareBeachId);
+    if (state.shareZone) params.set("zone", state.shareZone);
+    url.search = params.toString();
+    url.hash = "";
+    return url.toString();
+  }
+
+  // 페이지 로드 시 URL에 ?beach=...&zone=...이 있으면 그 해변 정보 모달을 자동으로 연다.
+  // (공유 링크를 눌러 들어왔을 때를 위한 딥링크 처리)
+  function openSharedBeachFromUrl() {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var beachId = params.get("beach");
+      if (!beachId) return;
+      var exists = BEACHES.some(function (b) { return b.id === beachId; });
+      if (!exists) return;
+      var zone = params.get("zone");
+      if (zone && ZONES.indexOf(zone) === -1) zone = null;
+      openInfo(beachId, zone);
+    } catch (e) {
+      // URL 파싱 실패 시 조용히 무시하고 앱은 평소대로 켜진다.
+    }
   }
 
   function openShare(beachId, zone) {
@@ -1152,7 +1191,7 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
 
     if (state.shareStep === "friends") {
       var platform = SHARE_PLATFORMS.filter(function (p) { return p.id === state.sharePlatform; })[0];
-      var friendRows = SHARE_FRIENDS.map(function (name) {
+      var friendRows = state.shareFriends.map(function (name) {
         return (
           '<div class="friendItem" data-friend="' + name + '">' +
             '<span class="friendAvatar">' + name.charAt(0) + '</span>' +
@@ -1192,7 +1231,7 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     state.sharePlatform = id;
     if (id === "link") {
       var msg = shareMessageText();
-      var text = msg + " (https://jelly-ping.example/share)";
+      var text = msg + " (" + shareDeepLink() + ")";
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(function () {
           closeShare();
@@ -1207,6 +1246,7 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
       }
       return;
     }
+    state.shareFriends = pickRandomFriends(4);
     state.shareStep = "friends";
     renderShareModal();
   }
