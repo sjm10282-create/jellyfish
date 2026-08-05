@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>해파리 제보</title>
+<title>Jelly Ping</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; }
@@ -213,7 +213,6 @@
     font-size: 11px; font-weight: 800; color: #16321f; white-space: nowrap; pointer-events: none;
     text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff,
                  1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff; }
-  .kBeachLabel--low { bottom: -30px; }
   /* 구역 핀 라벨 (작은 글씨) */
   .kZoneLabel { position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%);
     font-size: 9px; font-weight: 800; color: #16321f; white-space: nowrap;
@@ -245,7 +244,7 @@
   <header class="header">
     <div class="brandRow">
       <span class="brandMark"></span>
-      <div class="title">해수욕장 해파리 위험도</div>
+      <div class="title">Jelly Ping</div>
     </div>
     <div class="sub">부산 연안 실시간 쏘임 경보 · 제보 기반 탐지</div>
   </header>
@@ -309,7 +308,7 @@
     <div class="sheet" id="infoContent"></div>
   </div>
 
-  <!-- 신고 2단계(개수 선택 + 사진/GPS) 모달: 해변 선택은 지도에서 직접 -->
+  <!-- 신고 모달 (모달 안 미니맵에서 해변 선택 → 구역·개수·사진) -->
   <div class="overlay hidden" id="reportOverlay">
     <div class="sheet" id="reportContent"></div>
   </div>
@@ -729,12 +728,14 @@
     });
 
     // 구역 핀 (서/중/동) — 처음엔 숨겨두고, 일정 수준 이상 확대하면 나타난다
-    // 백사장 방향(along)을 따라 좌우로 나누고, 바다 쪽(sea)으로 공통으로 밀어내 물가에 배치한다.
+    // 백사장 방향(along)을 따라 좌우로 나누고, 바다 쪽(sea)으로 아주 살짝만 밀어 물가/백사장에 배치한다.
+    // (sea 오프셋을 그대로 다 쓰면 실제 지도에서 물 위로 나가버리는 경우가 있어 배수를 줄인다.)
+    var ZONE_SEA_FACTOR = 0.25;
     BEACHES.forEach(function (b) {
       ZONES.forEach(function (z) {
         var f = ZONE_ALONG_FACTOR[z];
-        var zLat = b.lat + b.along.la * f + b.sea.la;
-        var zLng = b.lng + b.along.ln * f + b.sea.ln;
+        var zLat = b.lat + b.along.la * f + b.sea.la * ZONE_SEA_FACTOR;
+        var zLng = b.lng + b.along.ln * f + b.sea.ln * ZONE_SEA_FACTOR;
         buildPinOverlay({
           key: b.id + "_" + z, beachId: b.id, zone: z,
           lat: zLat, lng: zLng, initialVisible: false,
@@ -1099,7 +1100,7 @@
     var rows = BEACHES.map(function (b) {
       return (
         '<div class="lgRow">' +
-          '<span class="pickedName" style="font-size:13.5px;font-weight:700;flex:1">' + fullName(b) + '</span>' +
+          '<span class="lgRowName">' + fullName(b) + '</span>' +
           '<button class="lgRowGo" data-go="' + b.id + '">지도에서 보기</button>' +
         '</div>'
       );
@@ -1111,13 +1112,11 @@
       '<div class="lgTip">지도 위 빨간 점은 백사장 중앙 부근에 있을 것으로 가정한 위치예요(실제 확인된 좌표가 아니에요). 정확한 위치는 시즌·요일에 따라 바뀔 수 있으니, 도착하면 주변을 둘러보거나 사람들에게 물어보세요. 급할 땐 119(해양 사고는 122 해양경찰)로 바로 연락하세요.</div>' +
       '<button class="cancelBtn" id="lifeguardCloseBtn">닫기</button>';
   }
-  // 안전요원 부스는 보통 백사장 중앙, 물가 바로 앞에 있다고 가정해
-  // 각 해변의 중앙(along 0) + 바다 쪽으로 살짝(sea의 40%)만 이동한 지점을 부스 위치로 삼는다.
+  // 안전요원 부스는 보통 백사장 중앙 부근에 있다고 가정해, 해변의 대표 좌표(백사장 위로
+  // 맞춰둔 지점)를 그대로 부스 위치로 삼는다. (바다 쪽으로 밀면 실제 지도에서 물 위로
+  // 나가버리는 경우가 있어, 별도 오프셋을 주지 않는다.)
   function lifeguardSpot(b) {
-    return {
-      lat: b.lat + b.sea.la * 0.4,
-      lng: b.lng + b.sea.ln * 0.4,
-    };
+    return { lat: b.lat, lng: b.lng };
   }
 
   var lifeguardMarker = null; // 지도 위 빨간 점(안전요원 부스 가정 위치) 오버레이
