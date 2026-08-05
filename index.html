@@ -446,7 +446,7 @@
   }
   var COUNT_INTENSITY = { one: 0.6, few: 1.0, many: 1.6 };
 
-  var SIM_MIN_PER_REAL_SEC = 2;   // 실제 1초 = 시뮬레이션 2분 배속(기존 3분보다 완만하게)
+  var SIM_MIN_PER_REAL_SEC = 3;   // 실제 1초 = 시뮬레이션 3분 배속
   var HALF_LIFE_MIN = 90;
   // 같은 해수욕장 안(서→중, 중→동)은 빠르고 손실 없이 퍼지고,
   // 해수욕장 사이(예: 송도→감지해변)는 훨씬 느리게, 건널 때만 감쇠가 생긴다.
@@ -1033,10 +1033,9 @@
     var now = Date.now();
     var cooldownLeft = Math.max(0, REPORT_COOLDOWN_MS - (now - state.lastReportRealTime));
     var cooldownMsg = cooldownLeft > 0
-      ? '<div class="cooldownMsg">조금 전에 신고를 접수했어요. ' + Math.ceil(cooldownLeft/1000) + '초 후에 다시 신고할 수 있어요.</div>'
+      ? '<div class="cooldownMsg">조금 전에 신고를 접수했어요. ' + Math.ceil(cooldownLeft/1000) + '초 후에 제출할 수 있어요. 그동안 구역·개수·사진은 미리 골라둘 수 있어요.</div>'
       : '';
-    if (cooldownLeft > 0) countDisabled = "disabled";
-    // 쿨다운이 끝나는 정확한 시점에 맞춰 딱 한 번 더 다시 그려서, 버튼이 확실히 다시 눌리게 한다.
+    // 쿨다운이 끝나는 정확한 시점에 맞춰 딱 한 번 더 다시 그려서, 제출 버튼이 확실히 다시 눌리게 한다.
     if (cooldownLeft > 0) {
       if (cooldownRerenderTimer) clearTimeout(cooldownRerenderTimer);
       cooldownRerenderTimer = setTimeout(function () {
@@ -1259,11 +1258,9 @@
     if (t - lastModalRenderT > 1000) {
       lastModalRenderT = t;
       if (!el.infoOverlay.classList.contains("hidden")) renderInfoContent(scores);
-      // 신고 모달은 쿨다운 카운트다운이 도는 동안에만 갱신 (평소엔 버튼 터치가 씹히지 않도록 재렌더 안 함)
-      if (!el.reportOverlay.classList.contains("hidden") && state.reportBeachId &&
-          Date.now() - state.lastReportRealTime < REPORT_COOLDOWN_MS) {
-        renderReportModal(scores);
-      }
+      // 신고 모달은 여기서 주기적으로 다시 그리지 않는다. 쿨다운 중에도 구역·개수 버튼을
+      // 자유롭게 누를 수 있어야 하므로, 매초 다시 그리면 그 순간 터치가 씹힐 수 있다.
+      // 쿨다운이 끝나는 시점 갱신은 renderReportModal 안의 전용 타이머(cooldownRerenderTimer)가 담당한다.
     }
 
     requestAnimationFrame(tick);
