@@ -77,12 +77,17 @@
   .kPinSelected.on { opacity: 1; }
 
   /* 지도 위 신고 선택 안내 배너 */
-  .reportBanner { position: relative; margin: 0 14px; margin-top: -6px; background: #16321f; color: #fff;
-    border-radius: 0 0 14px 14px; padding: 10px 16px 12px; font-size: 12.5px; font-weight: 700;
-    display: none; align-items: center; justify-content: space-between; gap: 10px; }
-  .reportBanner.show { display: flex; }
-  .reportBanner .rbCancel { border: none; background: rgba(255,255,255,0.15); color: #fff; font-size: 11.5px;
-    font-weight: 700; padding: 6px 11px; border-radius: 8px; cursor: pointer; flex-shrink: 0; }
+  /* 신고 모달 내 미니맵 */
+  .miniMapWrap { position: relative; margin: 6px 0 4px; border-radius: 14px; overflow: hidden;
+    border: 2px solid #ffffff; box-shadow: 0 2px 10px rgba(30,60,40,0.12); aspect-ratio: 1 / 1; }
+  .miniMapSvg { width: 100%; height: 100%; display: block; }
+  .miniLabel { position: absolute; transform: translate(-50%, -50%); background: rgba(255,255,255,0.85);
+    border: none; border-radius: 8px; padding: 1px 5px; font-size: 10px; font-weight: 800;
+    color: #16321f; cursor: pointer; white-space: nowrap; margin-top: -10px; }
+  .miniLabel:active { transform: translate(-50%, -50%) scale(0.94); }
+  .changeBeachBtn { border: none; background: #ffffff; color: #4a5f52; font-size: 11.5px; font-weight: 700;
+    padding: 7px 11px; border-radius: 8px; cursor: pointer; flex-shrink: 0; }
+  .changeBeachBtn:active { transform: scale(0.97); }
 
   /* 하단 고정 2버튼 (좌: 대처법 / 우: 신고) */
   .actionBar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%;
@@ -190,6 +195,11 @@
   .zoneBtn.selected { border-color: #16321f; background: #eef6ef; }
   .zoneBtn:active { transform: scale(0.97); }
   .zoneAll { border-color: #b7c4ba; font-weight: 800; }
+  /* 해변 전체 핀 이름 라벨 */
+  .kBeachLabel { position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; font-weight: 800; color: #16321f; white-space: nowrap; pointer-events: none;
+    text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff,
+                 1px 1px 0 #fff, -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff; }
   /* 구역 핀 라벨 (작은 글씨) */
   .kZoneLabel { position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%);
     font-size: 9px; font-weight: 800; color: #16321f; white-space: nowrap;
@@ -260,10 +270,6 @@
   <div class="mapWrap">
     <div id="kakaoMap"></div>
     <div class="mapLoading" id="mapLoading">지도를 불러오는 중이에요…</div>
-  </div>
-  <div class="reportBanner" id="reportBanner">
-    <span>지도에서 해파리를 목격한 해수욕장을 눌러 주세요</span>
-    <button class="rbCancel" id="reportBannerCancel">취소</button>
   </div>
   <div class="legend">
     <span class="legendItem"><span class="legendDot" style="background:#2fae5c"></span>안전</span>
@@ -366,14 +372,14 @@
 
   // ── 부산 8개 해수욕장 (실제 위경도) ───────────────────────────
   var BEACHES = [
-    { id: "imnang",    name: "임랑",     lat: 35.3546, lng: 129.2455 },
-    { id: "ilgwang",   name: "일광",     lat: 35.2823, lng: 129.2323 },
-    { id: "songjeong", name: "송정",     lat: 35.1791, lng: 129.2007 },
-    { id: "haeundae",  name: "해운대",   lat: 35.1587, lng: 129.1604 },
-    { id: "gwangalli", name: "광안리",   lat: 35.1532, lng: 129.1187 },
-    { id: "songdo",    name: "송도",     lat: 35.0765, lng: 129.0139 },
-    { id: "gamji",     name: "감지해변", lat: 35.0715, lng: 129.0130 },
-    { id: "dadaepo",   name: "다대포",   lat: 35.0486, lng: 128.9649 },
+    { id: "imnang",    name: "임랑",     lat: 35.3546, lng: 129.2455, mx: 90, my: 10 },
+    { id: "ilgwang",   name: "일광",     lat: 35.2823, lng: 129.2323, mx: 87, my: 29 },
+    { id: "songjeong", name: "송정",     lat: 35.1791, lng: 129.2007, mx: 77, my: 56 },
+    { id: "haeundae",  name: "해운대",   lat: 35.1587, lng: 129.1604, mx: 66, my: 61 },
+    { id: "gwangalli", name: "광안리",   lat: 35.1532, lng: 129.1187, mx: 54, my: 63 },
+    { id: "songdo",    name: "송도",     lat: 35.0765, lng: 129.0165, mx: 27, my: 82 },
+    { id: "gamji",     name: "감지해변", lat: 35.0688, lng: 129.0225, mx: 38, my: 86 },
+    { id: "dadaepo",   name: "다대포",   lat: 35.0486, lng: 128.9649, mx: 10, my: 90 },
   ];
   // 해류 전파 순서: 동한난류를 따라 남 → 북 (다대포가 상류, 임랑이 하류)
   var DRIFT_ORDER = ["dadaepo", "songdo", "gamji", "gwangalli", "haeundae", "songjeong", "ilgwang", "imnang"];
@@ -528,8 +534,7 @@
     cautionCount: document.getElementById("cautionCount"),
     totalReports: document.getElementById("totalReports"),
     mapLoading: document.getElementById("mapLoading"),
-    reportBanner: document.getElementById("reportBanner"),
-    reportBannerCancel: document.getElementById("reportBannerCancel"),
+    reportBannerCancel: null,
     openReportBtn: document.getElementById("openReportBtn"),
     infoOverlay: document.getElementById("infoOverlay"),
     infoContent: document.getElementById("infoContent"),
@@ -555,9 +560,15 @@
 
   // 핀 하나 생성 (해변 전체 핀 / 구역 핀 공용). zone이 있으면 구역 핀으로 만든다.
   function buildPinOverlay(opts) {
-    // opts: { key, lat, lng, zone(optional), beachId, initialVisible }
+    // opts: { key, lat, lng, zone(optional), beachId, name(optional), initialVisible }
     var wrap = document.createElement("div");
     wrap.className = opts.zone ? "kPin zonePin" : "kPin";
+    var labelHtml = "";
+    if (opts.zone) {
+      labelHtml = '<span class="kZoneLabel">' + ZONE_LABEL[opts.zone] + '</span>';
+    } else if (opts.name) {
+      labelHtml = '<span class="kBeachLabel">' + opts.name + '</span>';
+    }
     wrap.innerHTML =
       '<span class="kPinPulse"></span>' +
       '<span class="kPinDriftRing"></span>' +
@@ -565,7 +576,7 @@
       '<span class="kPinWhite"></span>' +
       '<span class="kPinFill"></span>' +
       '<span class="kPinCenter"></span>' +
-      (opts.zone ? '<span class="kZoneLabel">' + ZONE_LABEL[opts.zone] + '</span>' : '');
+      labelHtml;
     wrap.addEventListener("click", function (e) {
       e.stopPropagation();
       onPinClick(opts.beachId, opts.zone || null);
@@ -585,16 +596,9 @@
     };
   }
 
-  // 핀 클릭: 구역 핀이면 zone까지 함께 넘겨서, 신고/정보 화면이 그 구역에 바로 집중되도록 한다.
+  // 핀 클릭: 홈 지도에서는 항상 정보 보기 (구역 핀이면 그 구역을 강조)
   function onPinClick(beachId, zone) {
-    if (state.reportMode) {
-      state.reportBeachId = beachId;
-      state.reportZone = zone || null; // 구역 핀을 눌렀으면 구역 선택 단계를 건너뛴다
-      renderReportModal();
-      el.reportOverlay.classList.remove("hidden");
-    } else {
-      openInfo(beachId, zone);
-    }
+    openInfo(beachId, zone);
   }
 
   function initKakaoMap() {
@@ -611,7 +615,7 @@
 
     // 해변 전체 핀 (기본 표시)
     BEACHES.forEach(function (b) {
-      buildPinOverlay({ key: b.id, beachId: b.id, lat: b.lat, lng: b.lng });
+      buildPinOverlay({ key: b.id, beachId: b.id, name: b.name, lat: b.lat, lng: b.lng });
     });
 
     // 구역 핀 (서/중/동) — 처음엔 숨겨두고, 일정 수준 이상 확대하면 나타난다
@@ -688,7 +692,7 @@
         refs.pulse.style.background = st.color;
         refs.pulse.classList.toggle("on", isDanger);
         refs.driftRing.classList.toggle("on", sc.drifted > 0.15);
-        refs.selRing.classList.toggle("on", state.reportMode && state.reportBeachId === b.id);
+        refs.selRing.classList.toggle("on", false);
       }
       // 구역별 핀 갱신
       ZONES.forEach(function (z) {
@@ -761,24 +765,20 @@
     state.infoZone = null;
   }
 
-  // ── 신고 흐름: 지도에서 해변 선택 → 개수·사진·GPS ─────────
-  function enterReportMode() {
-    state.reportMode = true;
+  // ── 신고 흐름: 신고 버튼 → 모달 안 미니맵에서 해변 선택 → 구역·개수·사진 ──
+  function openReport() {
     state.reportBeachId = null;
     state.reportZone = null;
     state.reportPhoto = null;
     state.reportGps = null;
-    el.reportBanner.classList.add("show");
-    el.openReportBtn.classList.add("active");
-    updateMap(computeScores(state.reports, state.simMin));
+    renderReportModal();
+    el.reportOverlay.classList.remove("hidden");
+    requestGps();
   }
-  function exitReportMode() {
-    state.reportMode = false;
+  function closeReport() {
     state.reportBeachId = null;
-    el.reportBanner.classList.remove("show");
-    el.openReportBtn.classList.remove("active");
+    state.reportZone = null;
     el.reportOverlay.classList.add("hidden");
-    updateMap(computeScores(state.reports, state.simMin));
   }
 
   function requestGps() {
@@ -800,16 +800,57 @@
     );
   }
 
+  // 신고 모달용 미니맵 SVG (해변 위치를 상대좌표로 표시, 클릭해 해변 선택)
+  function buildReportMiniMap(scores, pickedId) {
+    var pins = "", labels = "";
+    BEACHES.forEach(function (b) {
+      var st = STATUS[scores[b.id].status];
+      var sel = pickedId === b.id;
+      var ring = sel ? '<circle cx="' + b.mx + '" cy="' + b.my + '" r="5.5" fill="none" stroke="#16321f" stroke-width="1"/>' : '';
+      pins +=
+        '<g data-pick="' + b.id + '" style="cursor:pointer">' +
+        ring +
+        '<circle cx="' + b.mx + '" cy="' + b.my + '" r="3.4" fill="#ffffff"/>' +
+        '<circle cx="' + b.mx + '" cy="' + b.my + '" r="3.4" fill="' + st.color + '" opacity="0.92"/>' +
+        '<circle cx="' + b.mx + '" cy="' + b.my + '" r="1.3" fill="#ffffff"/>' +
+        '<circle cx="' + b.mx + '" cy="' + b.my + '" r="8" fill="transparent"/>' +
+        '</g>';
+      labels += '<button class="miniLabel" data-pick="' + b.id + '" style="left:' + b.mx + '%;top:' + b.my + '%">' + b.name + '</button>';
+    });
+    return (
+      '<div class="miniMapWrap">' +
+        '<svg viewBox="0 0 100 100" preserveAspectRatio="none" class="miniMapSvg">' +
+          '<rect x="0" y="0" width="100" height="100" fill="#cfe6f2"/>' +
+          '<path d="M0,0 L62,0 L58,22 L52,44 L40,58 L20,72 L8,90 L0,100 Z" fill="#d6e8c9"/>' +
+          pins +
+        '</svg>' +
+        labels +
+      '</div>'
+    );
+  }
+
   function renderReportModal(scores) {
-    var picked = state.reportBeachId;
-    if (!picked) return;
     scores = scores || computeScores(state.reports, state.simMin);
+    var picked = state.reportBeachId;
+    var miniMap = buildReportMiniMap(scores, picked);
+
+    // 1단계: 해변 미선택 → 미니맵에서 고르기
+    if (!picked) {
+      el.reportContent.innerHTML =
+        '<div class="sheetTitle">해파리 신고</div>' +
+        '<div class="sheetSub">해파리를 목격한 해수욕장을 지도에서 눌러 주세요</div>' +
+        miniMap +
+        '<div class="stepHint">잘못된 위치 신고를 막기 위해, 해수욕장을 먼저 선택해야 합니다.</div>' +
+        '<button class="cancelBtn" id="reportCloseBtn">닫기</button>';
+      return;
+    }
+
+    // 2단계: 해변 선택됨 → 구역·개수·사진
     var b = BEACHES.filter(function (x){return x.id===picked;})[0];
     var st = STATUS[scores[picked].status];
     var zone = state.reportZone;
     var countDisabled = zone ? "" : "disabled";
 
-    // 구역 선택 버튼
     var zoneBtnsHtml = '<div class="zoneBtns">';
     ["w","c","e","all"].forEach(function (z) {
       var sel = zone === z ? " selected" : "";
@@ -829,7 +870,6 @@
       : '<span class="pIcon">📷</span><span>사진 첨부</span>';
     var photoNote = state.reportPhoto ? '<div class="stepHint" style="margin-top:6px;color:#16321f">사진이 첨부돼 신고 신뢰도가 높아져요.</div>' : '';
 
-    // 쿨다운 체크
     var now = Date.now();
     var cooldownLeft = Math.max(0, REPORT_COOLDOWN_MS - (now - state.lastReportRealTime));
     var cooldownMsg = cooldownLeft > 0
@@ -842,6 +882,7 @@
       '<div class="pickedBeach">' +
         '<span class="bpDot" style="background:' + st.color + '"></span>' +
         '<span class="pickedName">' + fullName(b) + ' 선택됨</span>' +
+        '<button class="changeBeachBtn" id="changeBeachBtn">해변 변경</button>' +
       '</div>' +
       '<div class="sheetSub">어느 구역에서 봤나요?</div>' +
       zoneBtnsHtml +
@@ -878,7 +919,7 @@
       hasPhoto: !!state.reportPhoto, gps: state.reportGps,
     });
     state.lastReportRealTime = now;
-    exitReportMode();
+    closeReport();
     var zoneName = state.reportZone === "all" ? "" : " " + ZONE_LABEL[state.reportZone];
     showToast(fullName(b) + zoneName + " 해파리 신고가 접수됐어요.");
   }
@@ -979,15 +1020,13 @@
     }
   });
 
-  document.getElementById("openReportBtn").addEventListener("click", function () {
-    if (state.reportMode) { exitReportMode(); return; }
-    enterReportMode();
-    requestGps();
-  });
-  el.reportBannerCancel.addEventListener("click", exitReportMode);
+  document.getElementById("openReportBtn").addEventListener("click", openReport);
 
   el.reportOverlay.addEventListener("click", function (e) {
-    if (e.target === el.reportOverlay || e.target.closest("#reportCloseBtn")) { exitReportMode(); return; }
+    if (e.target === el.reportOverlay || e.target.closest("#reportCloseBtn")) { closeReport(); return; }
+    var pick = e.target.closest("[data-pick]");
+    if (pick) { state.reportBeachId = pick.getAttribute("data-pick"); state.reportZone = null; renderReportModal(); return; }
+    if (e.target.closest("#changeBeachBtn")) { state.reportBeachId = null; state.reportZone = null; renderReportModal(); return; }
     if (e.target.closest("#photoBtn")) { document.getElementById("photoInput").click(); return; }
     var zoneBtn = e.target.closest("[data-zone]");
     if (zoneBtn) { state.reportZone = zoneBtn.getAttribute("data-zone"); renderReportModal(); return; }
