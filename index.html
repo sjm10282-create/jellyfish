@@ -400,36 +400,96 @@
   // 확인된 수치, 나머지는 알려진 일반적 규모를 참고한 추정치)와, 화면·지도로 확인한 백사장
   // 방향을 이용해 "중심 좌표 ± 백사장 절반 길이"로 양 끝점을 계산해 넣었다. 정밀 실측 좌표는
   // 아니므로, 더 정확한 해안선 좌표가 생기면 shoreline 배열에 점을 더 추가해 교체하면 된다.
+   // 각 해변의 서·중·동 해안선 앵커 좌표
   var BEACHES = [
-    { id: "imnang",    name: "임랑",     searchName: "임랑해수욕장",   lat: 35.3283, lng: 129.2630, mx: 92, my: 8,
-      shoreline: [ { lat: 35.324328, lng: 129.262007 }, { lat: 35.332272, lng: 129.263993 } ] },
-    { id: "ilgwang",   name: "일광",     searchName: "일광해수욕장",   lat: 35.2620, lng: 129.2361, mx: 88, my: 28,
-      shoreline: [ { lat: 35.258883, lng: 129.235516 }, { lat: 35.265117, lng: 129.236684 } ] },
-    { id: "songjeong", name: "송정",     searchName: "송정해수욕장 부산", lat: 35.1788, lng: 129.2003, mx: 78, my: 55,
-      shoreline: [ { lat: 35.177219, lng: 129.193976 }, { lat: 35.180381, lng: 129.206624 } ] },
-    { id: "haeundae",  name: "해운대",   searchName: "해운대해수욕장",  lat: 35.1587, lng: 129.1604, mx: 66, my: 60,
-      shoreline: [ { lat: 35.157880, lng: 129.152197 }, { lat: 35.159520, lng: 129.168603 } ] },
-    { id: "gwangalli", name: "광안리",   searchName: "광안리해수욕장",  lat: 35.1532, lng: 129.1187, mx: 54, my: 62,
-      shoreline: [ { lat: 35.146926, lng: 129.117916 }, { lat: 35.159474, lng: 129.119484 } ] },
-    { id: "songdo",    name: "송도",     searchName: "송도해수욕장 부산 서구", lat: 35.0778, lng: 129.0166, mx: 23, my: 82,
-      shoreline: [ { lat: 35.077081, lng: 129.012285 }, { lat: 35.078519, lng: 129.020915 } ] },
-    { id: "gamji",     name: "감지해변", searchName: "감지해변 부산 영도구", lat: 35.0533, lng: 129.0873, mx: 44, my: 88,
-      shoreline: [ { lat: 35.052359, lng: 129.088241 }, { lat: 35.054241, lng: 129.086359 } ] },
-    { id: "dadaepo",   name: "다대포",   searchName: "다대포해수욕장",  lat: 35.0416, lng: 128.9660, mx: 8, my: 92,
-      shoreline: [ { lat: 35.040071, lng: 128.961414 }, { lat: 35.043129, lng: 128.970586 } ] },
+    {
+      id: "imnang", name: "임랑", searchName: "임랑해수욕장",
+      lat: 35.319904, lng: 129.265701, mx: 92, my: 8,
+      shoreline: [
+        { lat: 35.318238, lng: 129.264051 },
+        { lat: 35.319904, lng: 129.265701 },
+        { lat: 35.320365, lng: 129.268320 }
+      ]
+    },
+    {
+      id: "ilgwang", name: "일광", searchName: "일광해수욕장",
+      lat: 35.261615, lng: 129.233883, mx: 88, my: 28,
+      shoreline: [
+        { lat: 35.257724, lng: 129.236398 },
+        { lat: 35.261615, lng: 129.233883 },
+        { lat: 35.264178, lng: 129.235430 }
+      ]
+    },
+    {
+      id: "songjeong", name: "송정", searchName: "송정해수욕장 부산",
+      lat: 35.175985, lng: 129.197803, mx: 78, my: 55,
+      shoreline: [
+        { lat: 35.171340, lng: 129.198060 },
+        { lat: 35.175985, lng: 129.197803 },
+        { lat: 35.180147, lng: 129.204963 }
+      ]
+    },
+    {
+      id: "haeundae", name: "해운대", searchName: "해운대해수욕장",
+      lat: 35.158102, lng: 129.161084, mx: 66, my: 60,
+      shoreline: [
+        { lat: 35.155678, lng: 129.154773 },
+        { lat: 35.158102, lng: 129.161084 },
+        { lat: 35.158628, lng: 129.169222 }
+      ]
+    },
+    {
+      id: "gwangalli", name: "광안리", searchName: "광안리해수욕장",
+      lat: 35.152418, lng: 129.118490, mx: 54, my: 62,
+      shoreline: [
+        { lat: 35.146436, lng: 129.115239 },
+        { lat: 35.152418, lng: 129.118490 },
+        { lat: 35.154505, lng: 129.123692 }
+      ]
+    },
+    {
+      id: "songdo", name: "송도", searchName: "송도해수욕장 부산 서구",
+      lat: 35.075730, lng: 129.017971, mx: 23, my: 82,
+      shoreline: [
+        { lat: 35.073824, lng: 129.017065 },
+        { lat: 35.075730, lng: 129.017971 },
+        { lat: 35.076996, lng: 129.021183 }
+      ]
+    },
+    {
+      id: "gamji", name: "감지해변", searchName: "감지해변 부산 영도구",
+      lat: 35.060347, lng: 129.077415, mx: 44, my: 88,
+      shoreline: [
+        { lat: 35.059908, lng: 129.077561 },
+        { lat: 35.060347, lng: 129.077415 },
+        { lat: 35.060891, lng: 129.075287 }
+      ]
+    },
+    {
+      id: "dadaepo", name: "다대포", searchName: "다대포해수욕장",
+      lat: 35.046417, lng: 128.961705, mx: 8, my: 92,
+      shoreline: [
+        { lat: 35.043181, lng: 128.967601 },
+        { lat: 35.046417, lng: 128.961705 },
+        { lat: 35.050678, lng: 128.958583 }
+      ]
+    }
   ];
-  // 해류 전파 순서: 동한난류를 따라 남 → 북 (다대포가 상류, 임랑이 하류)
-  var DRIFT_ORDER = ["dadaepo", "songdo", "gamji", "gwangalli", "haeundae", "songjeong", "ilgwang", "imnang"];
 
-  // 구역 시스템: 각 해변을 동/중/서 3구역으로 나눠 세밀하게 경고
-  var ZONES = ["w", "c", "e"]; // 서, 중앙, 동
+  var DRIFT_ORDER = [
+    "dadaepo", "songdo", "gamji", "gwangalli",
+    "haeundae", "songjeong", "ilgwang", "imnang"
+  ];
+
+  var ZONES = ["w", "c", "e"];
   var ZONE_LABEL = { w: "서쪽", c: "중앙", e: "동쪽", all: "전체" };
-  var ZONE_RATIO = { w: 0.25, c: 0.5, e: 0.75 }; // 해안선을 따라 각 구역이 위치할 비율
-  var ZONE_ZOOM_THRESHOLD = 7; // 이 레벨 이하(더 확대)면 구역 핀 표시
-  var PHOTO_WEIGHT_BONUS = 1.5; // 사진 첨부 시 가중치 배수
-  var REPORT_COOLDOWN_MS = 5000; // 부정 신고 방지: 실제 시간 기준 5초
 
-  // 위도/경도 두 점 사이의 거리(m). 부산처럼 좁은 범위에서는 이 근사로 충분하다.
+  // shoreline의 첫 점·중간 점·마지막 점을 각각 서·중·동에 사용
+  var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
+
+  var ZONE_ZOOM_THRESHOLD = 7;
+  var PHOTO_WEIGHT_BONUS = 1.5;
+  var REPORT_COOLDOWN_MS = 5000;
   function latLngDistanceMeters(p1, p2) {
     var mPerLat = 111000;
     var mPerLng = 111000 * Math.cos((p1.lat * Math.PI) / 180);
@@ -1308,7 +1368,6 @@
         renderReportModal();
       };
       reader.readAsDataURL(e.target.files[0]);
-      lastModalRenderT = t;
     }
   });
 
@@ -1324,6 +1383,7 @@
     updateMap(scores);
 
     if (t - lastModalRenderT > 1000) {
+      lastModalRenderT = t;
       if (!el.infoOverlay.classList.contains("hidden")) renderInfoContent(scores);
       // 신고 모달은 여기서 주기적으로 다시 그리지 않는다. 쿨다운 중에도 구역·개수 버튼을
       // 자유롭게 누를 수 있어야 하므로, 매초 다시 그리면 그 순간 터치가 씹힐 수 있다.
