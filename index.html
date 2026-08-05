@@ -881,8 +881,7 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     el.mapLoading.style.display = "none";
     updateMap(computeScores(state.reports, state.simMin));
 
-    // 지도가 준비된 뒤에만 실시간 GPS 추적을 시작한다(초기화 전에 콜백이 오는 경우 방지).
-    startWatchingMyLocation();
+ 
   }
 
   // ── 내 위치(파란 점) 표시 ────────────────────────────────
