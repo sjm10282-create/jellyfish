@@ -734,15 +734,26 @@
     // shoreline을 따라 25%/50%/75% 지점에 놓는다(별도의 바다 방향 오프셋 없음).
     // shoreline이 없는 해변은 세 구역 모두 같은 fallback 지점에 겹쳐서 표시된다.
     BEACHES.forEach(function (b) {
-      var fallback = { lat: b.lat, lng: b.lng };
-      ZONES.forEach(function (z) {
-        var p = pointOnShoreline(b.shoreline, ZONE_RATIO[z], fallback);
-        buildPinOverlay({
-          key: b.id + "_" + z, beachId: b.id, zone: z,
-          lat: p.lat, lng: p.lng, initialVisible: false,
-        });
-      });
+  // shoreline이 없으면 w/c/e 핀을 같은 기준점에 겹쳐 만들지 않는다.
+  if (!b.shoreline || b.shoreline.length < 2) return;
+
+  ZONES.forEach(function (z) {
+    var p = pointOnShoreline(
+      b.shoreline,
+      ZONE_RATIO[z],
+      { lat: b.lat, lng: b.lng }
+    );
+
+    buildPinOverlay({
+      key: b.id + "_" + z,
+      beachId: b.id,
+      zone: z,
+      lat: p.lat,
+      lng: p.lng,
+      initialVisible: false
     });
+  });
+});
 
     // 해류 방향 표시선: 그림판으로 표시한 실제 해안선 경로를 위경도로 직접 정의한다.
     // (다대포 앞바다 → 영도 남단을 크게 감싸 → 광안리·해운대 앞바다 → 송정·일광·임랑 → 북동 먼바다)
@@ -851,17 +862,21 @@
     myLocationWatchId = navigator.geolocation.watchPosition(
       onMyLocationUpdate,
       onMyLocationError,
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
-    );
+      BEACHES.forEach(function (b) {
+  var hasShoreline = !!(b.shoreline && b.shoreline.length >= 2);
+
+  // 해안선 좌표가 없을 땐 대표 핀을 계속 표시한다.
+  if (pinEls[b.id] && pinEls[b.id].overlay) {
+    pinEls[b.id].overlay.setVisible(!showZones || !hasShoreline);
   }
 
-  var lastShowZones = null;
-  function handleZoomChange() {
-    if (!kakaoMap) return;
-    var level = kakaoMap.getLevel();
-    var showZones = level <= ZONE_ZOOM_THRESHOLD;
-    if (showZones === lastShowZones) return; // 표시 단계가 그대로면 아무것도 안 함
-    lastShowZones = showZones;
+  ZONES.forEach(function (z) {
+    var zId = b.id + "_" + z;
+    if (pinEls[zId] && pinEls[zId].overlay) {
+      pinEls[zId].overlay.setVisible(showZones && hasShoreline);
+    }
+  });
+});
     BEACHES.forEach(function (b) {
       if (pinEls[b.id] && pinEls[b.id].overlay) {
         pinEls[b.id].overlay.setVisible(!showZones);
