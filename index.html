@@ -857,38 +857,43 @@
     // 무관하게 정상 동작해야 하므로 별도 에러 UI를 띄우지 않는다.
   }
 
-  function startWatchingMyLocation() {
-    if (!navigator.geolocation || myLocationWatchId != null) return;
-    myLocationWatchId = navigator.geolocation.watchPosition(
-      onMyLocationUpdate,
-      onMyLocationError,
-      BEACHES.forEach(function (b) {
-  var hasShoreline = !!(b.shoreline && b.shoreline.length >= 2);
+function startWatchingMyLocation() {
+  if (!navigator.geolocation || myLocationWatchId != null) return;
 
-  // 해안선 좌표가 없을 땐 대표 핀을 계속 표시한다.
-  if (pinEls[b.id] && pinEls[b.id].overlay) {
-    pinEls[b.id].overlay.setVisible(!showZones || !hasShoreline);
-  }
+  myLocationWatchId = navigator.geolocation.watchPosition(
+    onMyLocationUpdate,
+    onMyLocationError,
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+  );
+}
 
-  ZONES.forEach(function (z) {
-    var zId = b.id + "_" + z;
-    if (pinEls[zId] && pinEls[zId].overlay) {
-      pinEls[zId].overlay.setVisible(showZones && hasShoreline);
+var lastShowZones = null;
+
+function handleZoomChange() {
+  if (!kakaoMap) return;
+
+  var level = kakaoMap.getLevel();
+  var showZones = level <= ZONE_ZOOM_THRESHOLD;
+
+  if (showZones === lastShowZones) return;
+  lastShowZones = showZones;
+
+  BEACHES.forEach(function (b) {
+    var hasShoreline = !!(b.shoreline && b.shoreline.length >= 2);
+
+    // 해안선 좌표가 없을 땐 대표 핀을 계속 표시한다.
+    if (pinEls[b.id] && pinEls[b.id].overlay) {
+      pinEls[b.id].overlay.setVisible(!showZones || !hasShoreline);
     }
-  });
-});
-    BEACHES.forEach(function (b) {
-      if (pinEls[b.id] && pinEls[b.id].overlay) {
-        pinEls[b.id].overlay.setVisible(!showZones);
+
+    ZONES.forEach(function (z) {
+      var zId = b.id + "_" + z;
+      if (pinEls[zId] && pinEls[zId].overlay) {
+        pinEls[zId].overlay.setVisible(showZones && hasShoreline);
       }
-      ZONES.forEach(function (z) {
-        var zId = b.id + "_" + z;
-        if (pinEls[zId] && pinEls[zId].overlay) {
-          pinEls[zId].overlay.setVisible(showZones);
-        }
-      });
     });
-  }
+  });
+}
 
   function loadKakaoSdk() {
     if (!KAKAO_JS_KEY || KAKAO_JS_KEY.indexOf("여기에") === 0) {
