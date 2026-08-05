@@ -81,6 +81,14 @@
   .lgSpotPulse { position: absolute; inset: 0; border-radius: 50%; background: #e0402f;
     opacity: 0.5; animation: lgspotpulse 1.6s ease-out infinite; }
   @keyframes lgspotpulse { 0% { transform: scale(0.6); opacity: 0.55; } 100% { transform: scale(2.2); opacity: 0; } }
+
+  /* 내 위치(파란 점) — 해변/구역 마커와 완전히 분리된 실시간 GPS 표시 */
+  .myLocDot { position: relative; width: 16px; height: 16px; }
+  .myLocCore { position: absolute; inset: 3px; border-radius: 50%; background: #2f7fae;
+    border: 2px solid #ffffff; box-shadow: 0 1px 4px rgba(0,0,0,0.35); }
+  .myLocPulse { position: absolute; inset: 0; border-radius: 50%; background: #2f7fae;
+    opacity: 0.45; animation: mylocpulse 1.8s ease-out infinite; }
+  @keyframes mylocpulse { 0% { transform: scale(0.6); opacity: 0.5; } 100% { transform: scale(2.4); opacity: 0; } }
   .kPinSelected { position: absolute; inset: -6px; border-radius: 50%; border: 2px solid #16321f; opacity: 0; }
   .kPinSelected.on { opacity: 1; }
 
@@ -384,26 +392,23 @@
   "use strict";
 
   // ── 부산 8개 해수욕장 (실제 위경도) ───────────────────────────
-  // 각 해변의 백사장 방향(along)과 바다 방향(sea)을 위경도 증분으로 정의.
-  // along: 백사장이 뻗은 방향(이 방향으로 서/중/동 구역을 나눔)
-  // sea: 백사장에서 바다 쪽으로 나가는 방향(구역 핀을 물가로 살짝 밀어냄)
+  // shoreline 좌표는 서쪽→동쪽(또는 화면상 원하는 존 순서)으로 입력.
+  // w/c/e는 해안선을 따라 각각 25%/50%/75% 위치에 자동 배치됨.
+  // 해안선 좌표가 없으면 lat/lng fallback 한 점만 사용.
+  //
+  // 아래 8개 해변은 아직 실제로 측량/확인된 해안선 좌표(shoreline)가 없어서 전부 빈 배열이다.
+  // (짐작으로 좌표를 만들어 넣지 않는다 — 추측 좌표가 반복적으로 문제를 일으켰기 때문)
+  // 실제 해안선 좌표를 shoreline에 입력하면 정확도가 높아짐. 배열이 비어 있는 동안은
+  // 서/중/동 구역 핀이 전부 같은 lat/lng(fallback) 지점에 겹쳐서 표시된다.
   var BEACHES = [
-    { id: "imnang",    name: "임랑",     searchName: "임랑해수욕장",   lat: 35.3283, lng: 129.2630, mx: 92, my: 8,
-      along: {la: 0.00080, ln: 0.00020}, sea: {la: 0, ln: 0.0018} },
-    { id: "ilgwang",   name: "일광",     searchName: "일광해수욕장",   lat: 35.2620, lng: 129.2361, mx: 88, my: 28,
-      along: {la: 0.00080, ln: 0.00015}, sea: {la: 0, ln: 0.0018} },
-    { id: "songjeong", name: "송정",     searchName: "송정해수욕장 부산", lat: 35.1788, lng: 129.2003, mx: 78, my: 55,
-      along: {la: 0.00020, ln: 0.00080}, sea: {la: -0.0016, ln: 0.0006} },
-    { id: "haeundae",  name: "해운대",   searchName: "해운대해수욕장",  lat: 35.1587, lng: 129.1604, mx: 66, my: 60,
-      along: {la: 0.00010, ln: 0.00100}, sea: {la: -0.0016, ln: 0.0004} },
-    { id: "gwangalli", name: "광안리",   searchName: "광안리해수욕장",  lat: 35.1532, lng: 129.1187, mx: 54, my: 62,
-      along: {la: 0.00080, ln: 0.00010}, sea: {la: -0.0002, ln: 0.0018} },
-    { id: "songdo",    name: "송도",     searchName: "송도해수욕장 부산 서구", lat: 35.0778, lng: 129.0166, mx: 23, my: 82,
-      along: {la: 0.00015, ln: 0.00090}, sea: {la: -0.0016, ln: 0.0004} },
-    { id: "gamji",     name: "감지해변", searchName: "감지해변 부산 영도구", lat: 35.0533, lng: 129.0873, mx: 44, my: 88,
-      along: {la: 0.00050, ln: -0.00050}, sea: {la: -0.0006, ln: 0.0022} },
-    { id: "dadaepo",   name: "다대포",   searchName: "다대포해수욕장",  lat: 35.0416, lng: 128.9660, mx: 8, my: 92,
-      along: {la: 0.00030, ln: 0.00090}, sea: {la: -0.0016, ln: 0.0000} },
+    { id: "imnang",    name: "임랑",     searchName: "임랑해수욕장",   lat: 35.3283, lng: 129.2630, mx: 92, my: 8,  shoreline: [] },
+    { id: "ilgwang",   name: "일광",     searchName: "일광해수욕장",   lat: 35.2620, lng: 129.2361, mx: 88, my: 28, shoreline: [] },
+    { id: "songjeong", name: "송정",     searchName: "송정해수욕장 부산", lat: 35.1788, lng: 129.2003, mx: 78, my: 55, shoreline: [] },
+    { id: "haeundae",  name: "해운대",   searchName: "해운대해수욕장",  lat: 35.1587, lng: 129.1604, mx: 66, my: 60, shoreline: [] },
+    { id: "gwangalli", name: "광안리",   searchName: "광안리해수욕장",  lat: 35.1532, lng: 129.1187, mx: 54, my: 62, shoreline: [] },
+    { id: "songdo",    name: "송도",     searchName: "송도해수욕장 부산 서구", lat: 35.0778, lng: 129.0166, mx: 23, my: 82, shoreline: [] },
+    { id: "gamji",     name: "감지해변", searchName: "감지해변 부산 영도구", lat: 35.0533, lng: 129.0873, mx: 44, my: 88, shoreline: [] },
+    { id: "dadaepo",   name: "다대포",   searchName: "다대포해수욕장",  lat: 35.0416, lng: 128.9660, mx: 8, my: 92,  shoreline: [] },
   ];
   // 해류 전파 순서: 동한난류를 따라 남 → 북 (다대포가 상류, 임랑이 하류)
   var DRIFT_ORDER = ["dadaepo", "songdo", "gamji", "gwangalli", "haeundae", "songjeong", "ilgwang", "imnang"];
@@ -411,11 +416,47 @@
   // 구역 시스템: 각 해변을 동/중/서 3구역으로 나눠 세밀하게 경고
   var ZONES = ["w", "c", "e"]; // 서, 중앙, 동
   var ZONE_LABEL = { w: "서쪽", c: "중앙", e: "동쪽", all: "전체" };
-  // 백사장 방향(along)을 따라 구역을 -1/0/+1 만큼 나눈 뒤, 바다 쪽(sea)으로 공통으로 밀어낸다.
-  var ZONE_ALONG_FACTOR = { w: -1, c: 0, e: 1 };
+  var ZONE_RATIO = { w: 0.25, c: 0.5, e: 0.75 }; // 해안선을 따라 각 구역이 위치할 비율
   var ZONE_ZOOM_THRESHOLD = 7; // 이 레벨 이하(더 확대)면 구역 핀 표시
   var PHOTO_WEIGHT_BONUS = 1.5; // 사진 첨부 시 가중치 배수
   var REPORT_COOLDOWN_MS = 5000; // 부정 신고 방지: 실제 시간 기준 5초
+
+  // 위도/경도 두 점 사이의 거리(m). 부산처럼 좁은 범위에서는 이 근사로 충분하다.
+  function latLngDistanceMeters(p1, p2) {
+    var mPerLat = 111000;
+    var mPerLng = 111000 * Math.cos((p1.lat * Math.PI) / 180);
+    var dy = (p2.lat - p1.lat) * mPerLat;
+    var dx = (p2.lng - p1.lng) * mPerLng;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  // 해안선(points, [{lat,lng}, ...])을 따라 전체 길이의 ratio(0~1) 지점 좌표를 보간한다.
+  // 점이 2개 미만이거나 비어 있으면 오류 없이 fallback 좌표를 그대로 반환한다.
+  // 반환되는 점은 항상 해안선 선분 "위"에 있으며, 별도의 바다 방향 오프셋은 더하지 않는다.
+  function pointOnShoreline(points, ratio, fallback) {
+    if (!points || points.length < 2) return fallback;
+    var segLens = [], total = 0, i;
+    for (i = 0; i < points.length - 1; i++) {
+      var d = latLngDistanceMeters(points[i], points[i + 1]);
+      segLens.push(d);
+      total += d;
+    }
+    if (total <= 0) return fallback;
+    var target = total * Math.max(0, Math.min(1, ratio));
+    var acc = 0;
+    for (i = 0; i < segLens.length; i++) {
+      if (acc + segLens[i] >= target) {
+        var segRatio = segLens[i] > 0 ? (target - acc) / segLens[i] : 0;
+        var p0 = points[i], p1 = points[i + 1];
+        return {
+          lat: p0.lat + (p1.lat - p0.lat) * segRatio,
+          lng: p0.lng + (p1.lng - p0.lng) * segRatio,
+        };
+      }
+      acc += segLens[i];
+    }
+    return points[points.length - 1];
+  }
 
   // 해류가 실제로 흐르는 순서: 한 해변 안에서는 서쪽 → 중앙 → 동쪽을 거친 뒤
   // 다음 해변의 서쪽으로 넘어간다. (예: 송도서 → 송도중 → 송도동 → 감지서 → …)
@@ -661,61 +702,13 @@
     openInfo(beachId, zone);
   }
 
-  // 카카오 장소검색으로 각 해수욕장의 실제 좌표를 받아와 BEACHES 좌표를 보정한다.
-  // 카카오 장소검색으로 각 해수욕장의 실제 좌표를 받아와 BEACHES 좌표를 보정한다.
-  // (검색 실패 시엔 코드에 적힌 기본 좌표를 그대로 사용)
-  //
-  // 핵심: 검색 자체를 "기본 좌표 근처"로만 제한한다(location + radius + 거리순 정렬).
-  // 이렇게 안 하면 "감지해변"처럼 덜 알려진 이름은 전국/부산 전역을 대상으로 검색되어
-  // 이름이 비슷하거나 관련도가 애매한 엉뚱한 장소(산, 절 등)가 걸릴 수 있고, 이는 검색할
-  // 때마다 결과가 달라질 수 있어 재현성도 떨어뜨린다. 검색 범위를 미리 좁혀두면 애초에
-  // 엉뚱한 결과가 나올 여지 자체가 크게 줄어든다. 혹시 그래도 멀리 떨어진 결과가 오면
-  // 마지막 방어선으로 기본 좌표와의 거리를 한 번 더 확인해 버린다.
-  var GEOCODE_SEARCH_RADIUS_M = 3000; // 기본 좌표 반경 3km 안에서만 검색
-  var GEOCODE_MAX_DRIFT_M = 700;      // 그래도 이 거리(m) 이상 벗어난 결과는 최종적으로 버림
-  function roughDistanceMeters(la1, ln1, la2, ln2) {
-    var mPerLat = 111000;
-    var mPerLng = 111000 * Math.cos((la1 * Math.PI) / 180);
-    var dy = (la2 - la1) * mPerLat;
-    var dx = (ln2 - ln1) * mPerLng;
-    return Math.sqrt(dx * dx + dy * dy);
-  }
-  function geocodeBeaches(done) {
-    if (!(kakao.maps.services && kakao.maps.services.Places)) { done(); return; }
-    var places = new kakao.maps.services.Places();
-    var remaining = BEACHES.length;
-    var finished = false;
-    function checkDone() {
-      remaining -= 1;
-      if (remaining <= 0 && !finished) { finished = true; done(); }
-    }
-    // 혹시 콜백이 안 오는 경우를 대비한 안전장치 (3초 후 강제 진행)
-    setTimeout(function () { if (!finished) { finished = true; done(); } }, 3000);
-    BEACHES.forEach(function (b) {
-      var fallbackLat = b.lat, fallbackLng = b.lng; // 검색 전 기본 좌표를 기준점으로 보관
-      var searchOptions = {
-        location: new kakao.maps.LatLng(fallbackLat, fallbackLng),
-        radius: GEOCODE_SEARCH_RADIUS_M,
-        sort: kakao.maps.services.SortBy.DISTANCE, // 가까운 순으로 정렬 → 첫 결과가 가장 근접한 곳
-      };
-      places.keywordSearch(b.searchName || b.name, function (data, status) {
-        if (status === kakao.maps.services.Status.OK && data && data.length) {
-          var top = data[0];
-          var la = parseFloat(top.y), ln = parseFloat(top.x);
-          var drift = roughDistanceMeters(fallbackLat, fallbackLng, la, ln);
-          if (drift <= GEOCODE_MAX_DRIFT_M) {
-            b.lat = la; b.lng = ln;
-          }
-          // drift가 너무 크면 엉뚱한 장소로 보고 기본 좌표를 그대로 유지한다.
-        }
-        checkDone();
-      }, searchOptions);
-    });
-  }
+  // [비활성화] 카카오 장소검색(지오코딩)으로 BEACHES의 lat/lng를 덮어쓰는 로직은 제거했다.
+  // 검색 결과가 매번 같다는 보장이 없고, 이름이 애매한 곳(감지해변 등)은 엉뚱한 결과가
+  // 걸릴 수 있어 재현성이 떨어졌다. 이제 좌표는 코드에 적힌 값(BEACHES[].lat/lng,
+  // shoreline)만 사용하며, 장소검색의 첫 결과를 기준 좌표로 쓰지 않는다.
 
   function initKakaoMap() {
-    // 카카오 검색으로 실제 좌표를 먼저 보정한 뒤 지도를 그린다.
-    geocodeBeaches(function () { drawMap(); });
+    drawMap();
   }
 
   function drawMap() {
@@ -730,23 +723,23 @@
     var zoomControl = new kakao.maps.ZoomControl();
     kakaoMap.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
 
-    // 해변 전체 핀 (기본 표시)
+    // 해변 전체 핀 (기본 표시) — shoreline의 50% 지점(없으면 lat/lng fallback)에 놓는다.
     BEACHES.forEach(function (b) {
-      buildPinOverlay({ key: b.id, beachId: b.id, name: b.name, lat: b.lat, lng: b.lng });
+      var fallback = { lat: b.lat, lng: b.lng };
+      var p = pointOnShoreline(b.shoreline, 0.5, fallback);
+      buildPinOverlay({ key: b.id, beachId: b.id, name: b.name, lat: p.lat, lng: p.lng });
     });
 
-    // 구역 핀 (서/중/동) — 처음엔 숨겨두고, 일정 수준 이상 확대하면 나타난다
-    // 백사장 방향(along)을 따라 좌우로 나누고, 바다 쪽(sea)으로 아주 살짝만 밀어 물가/백사장에 배치한다.
-    // (sea 오프셋을 그대로 다 쓰면 실제 지도에서 물 위로 나가버리는 경우가 있어 배수를 줄인다.)
-    var ZONE_SEA_FACTOR = 0.12; // 바다에 걸치는 것보다 살짝 육지 쪽이 낫다고 판단해 보수적으로 낮춤
+    // 구역 핀 (서/중/동) — 처음엔 숨겨두고, 일정 수준 이상 확대하면 나타난다.
+    // shoreline을 따라 25%/50%/75% 지점에 놓는다(별도의 바다 방향 오프셋 없음).
+    // shoreline이 없는 해변은 세 구역 모두 같은 fallback 지점에 겹쳐서 표시된다.
     BEACHES.forEach(function (b) {
+      var fallback = { lat: b.lat, lng: b.lng };
       ZONES.forEach(function (z) {
-        var f = ZONE_ALONG_FACTOR[z];
-        var zLat = b.lat + b.along.la * f + b.sea.la * ZONE_SEA_FACTOR;
-        var zLng = b.lng + b.along.ln * f + b.sea.ln * ZONE_SEA_FACTOR;
+        var p = pointOnShoreline(b.shoreline, ZONE_RATIO[z], fallback);
         buildPinOverlay({
           key: b.id + "_" + z, beachId: b.id, zone: z,
-          lat: zLat, lng: zLng, initialVisible: false,
+          lat: p.lat, lng: p.lng, initialVisible: false,
         });
       });
     });
@@ -800,6 +793,66 @@
 
     el.mapLoading.style.display = "none";
     updateMap(computeScores(state.reports, state.simMin));
+
+    // 지도가 준비된 뒤에만 실시간 GPS 추적을 시작한다(초기화 전에 콜백이 오는 경우 방지).
+    startWatchingMyLocation();
+  }
+
+  // ── 내 위치(파란 점) 표시 ────────────────────────────────
+  // 해변/구역 마커(초록 원)와는 완전히 분리된 별도 오버레이다.
+  // 브라우저의 실시간 GPS(navigator.geolocation.watchPosition)만 사용하고,
+  // 이 값으로 해변/구역 마커의 기준 좌표를 바꾸지 않는다.
+  var myLocationMarker = null;
+  var myLocationAccuracyCircle = null;
+  var myLocationWatchId = null;
+
+  function ensureMyLocationMarker() {
+    if (myLocationMarker) return;
+    var wrap = document.createElement("div");
+    wrap.className = "myLocDot";
+    wrap.innerHTML = '<span class="myLocPulse"></span><span class="myLocCore"></span>';
+    myLocationMarker = new kakao.maps.CustomOverlay({
+      content: wrap, yAnchor: 0.5, xAnchor: 0.5, zIndex: 60,
+    });
+  }
+
+  function onMyLocationUpdate(pos) {
+    // kakaoMap이 아직 준비되기 전에 콜백이 오면(이론상 가능) 조용히 무시한다.
+    // watchPosition은 계속 반복 호출되므로, 지도가 준비된 다음 업데이트에서 자연히 반영된다.
+    if (!kakaoMap) return;
+    var la = pos.coords.latitude, ln = pos.coords.longitude;
+    var acc = pos.coords.accuracy || 30;
+    var latlng = new kakao.maps.LatLng(la, ln);
+
+    ensureMyLocationMarker();
+    myLocationMarker.setPosition(latlng);
+    myLocationMarker.setMap(kakaoMap);
+
+    if (!myLocationAccuracyCircle) {
+      myLocationAccuracyCircle = new kakao.maps.Circle({
+        center: latlng, radius: acc,
+        strokeWeight: 1, strokeColor: "#2f7fae", strokeOpacity: 0.5, strokeStyle: "solid",
+        fillColor: "#2f7fae", fillOpacity: 0.12,
+      });
+      myLocationAccuracyCircle.setMap(kakaoMap);
+    } else {
+      myLocationAccuracyCircle.setPosition(latlng);
+      myLocationAccuracyCircle.setRadius(acc);
+    }
+  }
+
+  function onMyLocationError() {
+    // 위치 권한 거부·실패 시 조용히 무시한다. 앱의 다른 기능(지도·신고 등)은 이 실패와
+    // 무관하게 정상 동작해야 하므로 별도 에러 UI를 띄우지 않는다.
+  }
+
+  function startWatchingMyLocation() {
+    if (!navigator.geolocation || myLocationWatchId != null) return;
+    myLocationWatchId = navigator.geolocation.watchPosition(
+      onMyLocationUpdate,
+      onMyLocationError,
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+    );
   }
 
   var lastShowZones = null;
@@ -1120,11 +1173,10 @@
       '<div class="lgTip">지도 위 빨간 점은 백사장 중앙 부근에 있을 것으로 가정한 위치예요(실제 확인된 좌표가 아니에요). 정확한 위치는 시즌·요일에 따라 바뀔 수 있으니, 도착하면 주변을 둘러보거나 사람들에게 물어보세요. 급할 땐 119(해양 사고는 122 해양경찰)로 바로 연락하세요.</div>' +
       '<button class="cancelBtn" id="lifeguardCloseBtn">닫기</button>';
   }
-  // 안전요원 부스는 보통 백사장 중앙 부근에 있다고 가정해, 해변의 대표 좌표(백사장 위로
-  // 맞춰둔 지점)를 그대로 부스 위치로 삼는다. (바다 쪽으로 밀면 실제 지도에서 물 위로
-  // 나가버리는 경우가 있어, 별도 오프셋을 주지 않는다.)
+  // 안전요원 부스는 보통 백사장 중앙 부근에 있다고 가정해, 해변 대표 지점(shoreline의
+  // 50% 지점, 없으면 lat/lng fallback)을 그대로 부스 위치로 삼는다.
   function lifeguardSpot(b) {
-    return { lat: b.lat, lng: b.lng };
+    return pointOnShoreline(b.shoreline, 0.5, { lat: b.lat, lng: b.lng });
   }
 
   var lifeguardMarker = null; // 지도 위 빨간 점(안전요원 부스 가정 위치) 오버레이
