@@ -371,15 +371,26 @@
   "use strict";
 
   // ── 부산 8개 해수욕장 (실제 위경도) ───────────────────────────
+  // 각 해변의 백사장 방향(along)과 바다 방향(sea)을 위경도 증분으로 정의.
+  // along: 백사장이 뻗은 방향(이 방향으로 서/중/동 구역을 나눔)
+  // sea: 백사장에서 바다 쪽으로 나가는 방향(구역 핀을 물가로 살짝 밀어냄)
   var BEACHES = [
-    { id: "imnang",    name: "임랑",     lat: 35.3546, lng: 129.2455, mx: 90, my: 10 },
-    { id: "ilgwang",   name: "일광",     lat: 35.2823, lng: 129.2323, mx: 87, my: 29 },
-    { id: "songjeong", name: "송정",     lat: 35.1791, lng: 129.2007, mx: 77, my: 56 },
-    { id: "haeundae",  name: "해운대",   lat: 35.1587, lng: 129.1604, mx: 66, my: 61 },
-    { id: "gwangalli", name: "광안리",   lat: 35.1532, lng: 129.1187, mx: 54, my: 63 },
-    { id: "songdo",    name: "송도",     lat: 35.0765, lng: 129.0165, mx: 27, my: 82 },
-    { id: "gamji",     name: "감지해변", lat: 35.0688, lng: 129.0225, mx: 38, my: 86 },
-    { id: "dadaepo",   name: "다대포",   lat: 35.0486, lng: 128.9649, mx: 10, my: 90 },
+    { id: "imnang",    name: "임랑",     lat: 35.3546, lng: 129.2455, mx: 92, my: 8,
+      along: {la: 0.0016, ln: 0.0004}, sea: {la: 0, ln: 0.0018} },
+    { id: "ilgwang",   name: "일광",     lat: 35.2823, lng: 129.2323, mx: 88, my: 28,
+      along: {la: 0.0016, ln: 0.0003}, sea: {la: 0, ln: 0.0018} },
+    { id: "songjeong", name: "송정",     lat: 35.1788, lng: 129.2003, mx: 78, my: 55,
+      along: {la: 0.0004, ln: 0.0016}, sea: {la: -0.0016, ln: 0.0006} },
+    { id: "haeundae",  name: "해운대",   lat: 35.1587, lng: 129.1604, mx: 66, my: 60,
+      along: {la: 0.0002, ln: 0.0020}, sea: {la: -0.0016, ln: 0.0004} },
+    { id: "gwangalli", name: "광안리",   lat: 35.1532, lng: 129.1187, mx: 54, my: 62,
+      along: {la: 0.0012, ln: 0.0012}, sea: {la: -0.0012, ln: 0.0012} },
+    { id: "songdo",    name: "송도",     lat: 35.0778, lng: 129.0166, mx: 23, my: 82,
+      along: {la: 0.0003, ln: 0.0018}, sea: {la: -0.0016, ln: 0.0004} },
+    { id: "gamji",     name: "감지해변", lat: 35.0550, lng: 129.0842, mx: 44, my: 88,
+      along: {la: 0.0012, ln: 0.0008}, sea: {la: -0.0008, ln: 0.0016} },
+    { id: "dadaepo",   name: "다대포",   lat: 35.0416, lng: 128.9660, mx: 8, my: 92,
+      along: {la: 0.0006, ln: 0.0018}, sea: {la: -0.0016, ln: 0.0000} },
   ];
   // 해류 전파 순서: 동한난류를 따라 남 → 북 (다대포가 상류, 임랑이 하류)
   var DRIFT_ORDER = ["dadaepo", "songdo", "gamji", "gwangalli", "haeundae", "songjeong", "ilgwang", "imnang"];
@@ -387,7 +398,8 @@
   // 구역 시스템: 각 해변을 동/중/서 3구역으로 나눠 세밀하게 경고
   var ZONES = ["w", "c", "e"]; // 서, 중앙, 동
   var ZONE_LABEL = { w: "서쪽", c: "중앙", e: "동쪽", all: "전체" };
-  var ZONE_LNG_OFFSET = { w: -0.003, c: 0, e: 0.003 };
+  // 백사장 방향(along)을 따라 구역을 -1/0/+1 만큼 나눈 뒤, 바다 쪽(sea)으로 공통으로 밀어낸다.
+  var ZONE_ALONG_FACTOR = { w: -1, c: 0, e: 1 };
   var ZONE_ZOOM_THRESHOLD = 7; // 이 레벨 이하(더 확대)면 구역 핀 표시
   var PHOTO_WEIGHT_BONUS = 1.5; // 사진 첨부 시 가중치 배수
   var REPORT_COOLDOWN_MS = 5000; // 부정 신고 방지: 실제 시간 기준 5초
@@ -565,9 +577,7 @@
     if (opts.zone) {
       labelHtml = '<span class="kZoneLabel">' + ZONE_LABEL[opts.zone] + '</span>';
     } else if (opts.name) {
-      // 송도와 매우 가까운 감지해변은 라벨을 조금 아래로 내려 겹치지 않게 한다
-      var lowCls = opts.beachId === "gamji" ? " kBeachLabel--low" : "";
-      labelHtml = '<span class="kBeachLabel' + lowCls + '">' + opts.name + '</span>';
+      labelHtml = '<span class="kBeachLabel">' + opts.name + '</span>';
     }
     wrap.innerHTML =
       '<span class="kPinPulse"></span>' +
@@ -619,22 +629,49 @@
     });
 
     // 구역 핀 (서/중/동) — 처음엔 숨겨두고, 일정 수준 이상 확대하면 나타난다
+    // 백사장 방향(along)을 따라 좌우로 나누고, 바다 쪽(sea)으로 공통으로 밀어내 물가에 배치한다.
     BEACHES.forEach(function (b) {
       ZONES.forEach(function (z) {
+        var f = ZONE_ALONG_FACTOR[z];
+        var zLat = b.lat + b.along.la * f + b.sea.la;
+        var zLng = b.lng + b.along.ln * f + b.sea.ln;
         buildPinOverlay({
           key: b.id + "_" + z, beachId: b.id, zone: z,
-          lat: b.lat, lng: b.lng + ZONE_LNG_OFFSET[z], initialVisible: false,
+          lat: zLat, lng: zLng, initialVisible: false,
         });
       });
     });
 
-    // 해류 방향 표시선: 다대포 → 임랑 순서로 해변을 잇는 점선
-    var path = DRIFT_ORDER.map(function (id) {
+    // 해류 방향 표시선: 각 해변에서 바다 쪽으로 나온 지점을 이어 육지를 가로지르지 않게 한다.
+    // (해변 지점을 그대로 직선으로 이으면 반도·곶을 가로질러 육지 위를 지나가므로,
+    //  sea 방향으로 크게 밀어낸 '앞바다 지점'을 곡선으로 잇는다.)
+    var SEA_OUT = 3.2; // 앞바다로 밀어내는 배수
+    var offshore = DRIFT_ORDER.map(function (id) {
       var b = BEACHES.filter(function (x) { return x.id === id; })[0];
-      return new kakao.maps.LatLng(b.lat, b.lng);
+      return { la: b.lat + b.sea.la * SEA_OUT, ln: b.lng + b.sea.ln * SEA_OUT };
     });
+    // Catmull-Rom 곡선을 위경도로 샘플링해 부드러운 앞바다 경로를 만든다.
+    var flowPath = [];
+    for (var i = 0; i < offshore.length - 1; i++) {
+      var p0 = offshore[i - 1] || offshore[i];
+      var p1 = offshore[i];
+      var p2 = offshore[i + 1];
+      var p3 = offshore[i + 2] || p2;
+      for (var t = 0; t < 1; t += 0.1) {
+        var t2 = t * t, t3 = t2 * t;
+        var la = 0.5 * ((2 * p1.la) + (-p0.la + p2.la) * t +
+          (2 * p0.la - 5 * p1.la + 4 * p2.la - p3.la) * t2 +
+          (-p0.la + 3 * p1.la - 3 * p2.la + p3.la) * t3);
+        var ln = 0.5 * ((2 * p1.ln) + (-p0.ln + p2.ln) * t +
+          (2 * p0.ln - 5 * p1.ln + 4 * p2.ln - p3.ln) * t2 +
+          (-p0.ln + 3 * p1.ln - 3 * p2.ln + p3.ln) * t3);
+        flowPath.push(new kakao.maps.LatLng(la, ln));
+      }
+    }
+    var lastP = offshore[offshore.length - 1];
+    flowPath.push(new kakao.maps.LatLng(lastP.la, lastP.ln));
     var flowLine = new kakao.maps.Polyline({
-      path: path, strokeWeight: 3, strokeColor: "#2f7fae", strokeOpacity: 0.6, strokeStyle: "shortdash",
+      path: flowPath, strokeWeight: 3, strokeColor: "#2f7fae", strokeOpacity: 0.6, strokeStyle: "shortdash",
     });
     flowLine.setMap(kakaoMap);
 
@@ -827,7 +864,9 @@
       '<div class="miniMapWrap">' +
         '<svg viewBox="0 0 100 100" preserveAspectRatio="none" class="miniMapSvg">' +
           '<rect x="0" y="0" width="100" height="100" fill="#cfe6f2"/>' +
-          '<path d="M0,0 L62,0 L58,22 L52,44 L40,58 L20,72 L8,90 L0,100 Z" fill="#d6e8c9"/>' +
+          '<path d="M0,0 L86,0 L84,10 L80,24 L72,42 L64,54 L56,58 L46,60 L34,66 L20,78 L4,90 L0,100 L0,0 Z" fill="#d6e8c9"/>' +
+          // 영도(감지해변이 있는 섬) 조각
+          '<path d="M30,84 L52,82 L54,92 L38,96 L28,92 Z" fill="#d6e8c9"/>' +
           pins +
         '</svg>' +
         labels +
