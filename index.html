@@ -732,7 +732,7 @@
     // 구역 핀 (서/중/동) — 처음엔 숨겨두고, 일정 수준 이상 확대하면 나타난다
     // 백사장 방향(along)을 따라 좌우로 나누고, 바다 쪽(sea)으로 아주 살짝만 밀어 물가/백사장에 배치한다.
     // (sea 오프셋을 그대로 다 쓰면 실제 지도에서 물 위로 나가버리는 경우가 있어 배수를 줄인다.)
-    var ZONE_SEA_FACTOR = 0.4;
+    var ZONE_SEA_FACTOR = 0.12; // 바다에 걸치는 것보다 살짝 육지 쪽이 낫다고 판단해 보수적으로 낮춤
     BEACHES.forEach(function (b) {
       ZONES.forEach(function (z) {
         var f = ZONE_ALONG_FACTOR[z];
