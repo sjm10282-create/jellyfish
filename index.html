@@ -475,7 +475,18 @@
       ]
     }
   ];
-
+  // 안전요원 안내용 위치: 해안선 중앙에서 육지 쪽으로 약 40~80m 보정
+  // 실제 안전요원 부스의 공식 좌표는 아니다.
+  var LIFEGUARD_LAND_OFFSET = {
+    imnang:    { lat:  0.00045, lng: -0.00015 },
+    ilgwang:   { lat:  0.00035, lng:  0.00020 },
+    songjeong: { lat:  0.00035, lng: -0.00035 },
+    haeundae:  { lat:  0.00045, lng:  0.00000 },
+    gwangalli: { lat:  0.00045, lng:  0.00000 },
+    songdo:    { lat:  0.00030, lng: -0.00025 },
+    gamji:     { lat:  0.00030, lng: -0.00020 },
+    dadaepo:   { lat:  0.00035, lng:  0.00025 }
+  };
   var DRIFT_ORDER = [
     "dadaepo", "songdo", "gamji", "gwangalli",
     "haeundae", "songjeong", "ilgwang", "imnang"
@@ -1243,9 +1254,20 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
   }
   // 안전요원 부스는 보통 백사장 중앙 부근에 있다고 가정해, 해변 대표 지점(shoreline의
   // 50% 지점, 없으면 lat/lng fallback)을 그대로 부스 위치로 삼는다.
-  function lifeguardSpot(b) {
-    return pointOnShoreline(b.shoreline, 0.5, { lat: b.lat, lng: b.lng });
-  }
+function lifeguardSpot(b) {
+  var shore = pointOnShoreline(
+    b.shoreline,
+    0.5,
+    { lat: b.lat, lng: b.lng }
+  );
+
+  var offset = LIFEGUARD_LAND_OFFSET[b.id] || { lat: 0, lng: 0 };
+
+  return {
+    lat: shore.lat + offset.lat,
+    lng: shore.lng + offset.lng
+  };
+}
 
   var lifeguardMarker = null; // 지도 위 빨간 점(안전요원 부스 가정 위치) 오버레이
   function showLifeguardSpot(b) {
@@ -1272,7 +1294,8 @@ var ZONE_RATIO = { w: 0, c: 0.5, e: 1 };
     el.aidOverlay.classList.add("hidden");
     if (kakaoMap) {
       kakaoMap.setLevel(4);
-      kakaoMap.panTo(new kakao.maps.LatLng(b.lat, b.lng));
+      var spot = lifeguardSpot(b);
+kakaoMap.panTo(new kakao.maps.LatLng(spot.lat, spot.lng));
       showLifeguardSpot(b);
     }
     showToast(LIFEGUARD_TIP[beachId] || (fullName(b) + " 위치로 이동했어요."));
